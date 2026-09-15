@@ -43,8 +43,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # Machine-learning pipeline (code/04_ml) — installs tensorflow (~600 MB).
-# The saved .keras models require TF 2.15.1, which has no wheels for Python > 3.11:
-# create the venv with Python 3.11, e.g.  uv venv --python 3.11 .venv
+# The saved models are Keras 3 format (keras>=3.15); tensorflow has no wheels
+# for Python 3.14+, so create the venv with Python <= 3.13:
+#   uv venv --python 3.13 .venv
 pip install -r requirements-ml.txt
 
 jupyter notebook

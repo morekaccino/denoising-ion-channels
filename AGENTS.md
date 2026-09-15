@@ -34,8 +34,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # ML pipeline (code/04_ml) additionally needs tensorflow.
-# IMPORTANT: TF 2.15.1 (required by the saved .keras models) has no wheels for
-# Python > 3.11 - create the venv with Python 3.11 (e.g. `uv venv --python 3.11 .venv`).
+# IMPORTANT: the saved models are in the Keras 3 format (keras>=3.15), and
+# tensorflow has no wheels for Python 3.14+ - create the venv with
+# Python <= 3.13 (e.g. `uv venv --python 3.13 .venv`).
 pip install -r requirements-ml.txt
 
 # Work with notebooks
@@ -50,6 +51,7 @@ python scripts/verify_repo.py
 - Real data: WT-CFTR recordings ± 50 µM glibenclamide (details in `docs/DATA.md`).
 - The winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
 - `tensorflow` is required only for `code/04_ml/` (via `requirements-ml.txt`); classical notebooks need only the core requirements.
+- The combined model is a subclassed `CustomModel`; to load it, the class must be defined/registered first (run its definition cell in `code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`, or define the same class in your script).
 - Some thesis hyperparameters (ML sweeps, GH noise parameters, DBSCAN epsilon heuristics) do not match the committed notebooks — see `docs/STATUS.md` before claiming full reproducibility.
 - Original history lives in the archived repo `morekaccino/MastersThesis`; this repo is the curated, active one.
 - No license declared — all rights reserved; data and thesis PDF are not for redistribution.

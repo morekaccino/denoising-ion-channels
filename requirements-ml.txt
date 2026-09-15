@@ -1,7 +1,7 @@
 # Extra dependencies for code/04_ml.
-# Pinned: the saved .keras models load only with the TF/Keras 2.15 line
-# (Keras 3 refuses the legacy LSTM/initializer configs - see docs/STATUS.md).
+# The saved .keras models are in the Keras 3 format (migrated 2026-09);
+# Keras 3.15+ is required. TensorFlow currently has no wheels for Python 3.14+,
+# so use Python <= 3.13 for the ML stack.
 -r requirements.txt
-numpy<2
-tensorflow==2.15.1
-keras==2.15.0
+tensorflow>=2.21
+keras>=3.15

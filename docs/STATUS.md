@@ -23,7 +23,8 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 | 2024-04-28 | State estimator supporting up to 4 states |
 | 2024-05-02 | Model complete — "needs to be tested with real data" |
 | 2024-12 | Thesis submitted |
-| 2026-09 | Repo curated into `masters-paper`; audits + reproducibility fixes; CI + verify script added; end-to-end re-execution validated on pinned TF 2.15.1 |
+| 2026-09 | Repo curated into `masters-paper`; audits + reproducibility fixes; CI + verify script added |
+| 2026-09 | Saved models migrated to Keras 3 format; repo environment upgraded to Python 3.13 / TF 2.21 / Keras 3.15; end-to-end re-execution validated on the new stack |
 
 ## Thesis vs code discrepancies
 
@@ -53,8 +54,9 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 
 - Both noise notebooks iterate `scipy.stats._continuous_distns._distn_names` (a private scipy API) to fit 106 distributions; may break on future scipy upgrades.
 - `on_real_data.ipynb` mixes `tensorflow.keras` and standalone `keras` imports; works with TF ≥ 2.16 + keras 3 (pinned in `requirements-ml.txt`).
-- The saved `.keras` models are version-sensitive: they load with **TensorFlow 2.15.1 / Keras 2.15.0** (pinned in `requirements-ml.txt`); Keras 3 refuses the legacy LSTM/initializer configs. Verified 2026-09: all three models load (the combined one needs its `CustomModel` class from its training notebook in scope).
-- The two real-data notebooks (`on_real_data.ipynb`, `LSTM_normalized_50_50_real_data.ipynb`) were re-executed end-to-end on the pinned environment in Sep 2026; their outputs reflect that run.
+- Model format: the saved `.keras` models were migrated from the legacy Keras 2 format (TF 2.15 era) to **Keras 3** in Sep 2026, so they load with `keras>=3.15` (`requirements-ml.txt`). Weight-equivalence was verified against the originals (max deviation 3e-7). TensorFlow currently has no Python 3.14+ wheels, so the ML stack caps at Python 3.13.
+- The combined model is a subclassed `CustomModel`; loading it requires the class to be defined/registered first (its definition cell in `state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb` carries `@register_keras_serializable`).
+- The two real-data notebooks (`on_real_data.ipynb`, `LSTM_normalized_50_50_real_data.ipynb`) are re-executed end-to-end whenever the environment changes; outputs reflect the latest verified run (currently Python 3.13 / TF 2.21 / Keras 3.15).
 - `data/raw/03n17005.abf` is 193 KB while the other 52 recordings are ~1.2 MB — likely a short/aborted recording; not used at a critical index, but flagged here.
 - No license: all rights reserved. `.abf` data (lab-provided) and thesis PDF are not for redistribution.
 
