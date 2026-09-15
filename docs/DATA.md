@@ -13,7 +13,24 @@ Two datasets are present:
 
 Both datasets come from one recording of WT-CFTR **in the absence and presence of 50 µM glibenclamide**. Glibenclamide enters the cytoplasmic entrance of the channel pore and its kinetics are completely different from those of normal channel closure — the difference between pore dynamics and gating dynamics is what makes the data interesting. Its action is voltage-dependent; it can enter in two ways (polar, charged) — one yields blocking times of a few ms, the other 10+ ms.
 
-Notebooks reference recordings **by index** into the sorted file listing produced by `AxonData(dirname=...)` (see `source/moreka.py`), so the full set of files must be present to reproduce exact results.
+**Rights note**: the recordings are lab-provided and not for redistribution. No license is declared anywhere in this repository; all rights reserved.
+
+**Anomaly**: `03n17005.abf` is 193 KB while every other recording is ~1.2 MB — likely a short or aborted recording.
+
+## How notebooks reference recordings
+
+Notebooks reference recordings **by index** into the sorted file listing produced by `AxonData(dirname=...)` (see `source/moreka.py`). Sorted order: `03n17000`–`03n17037` occupy indices 0–37, `03n18023`–`03n18037` occupy indices 38–52. Indices used by the committed notebooks:
+
+| Index | File | Used by |
+|---|---|---|
+| 3 | `03n17003.abf` | `code/04_ml/LSTM_normalized_50_50_real_data.ipynb` |
+| 21 | `03n17021.abf` | `code/03_classical/on_real_data.ipynb` |
+| 30 | `03n17030.abf` | `code/03_classical/dbscan.ipynb` |
+| 40 | `03n18025.abf` | `code/02_noise_modeling/normalization.ipynb` |
+| 41 | `03n18026.abf` | noise-modeling and classical notebooks (GH noise fitting) |
+| 17–49 | range | `normalization.ipynb` open-probability sweep |
+
+The full set of files must be present for indices to reproduce correctly.
 
 ## Format
 
@@ -38,6 +55,6 @@ df = data[0]  # pandas DataFrame with 'time' and 'signal' columns
 
 Papers in `data/references/` (cited in the thesis, on glibenclamide-induced block of WT CFTR):
 
-- Z.-R. Zhang, G. Cui, S. Zeltwanger, and N. A. McCarty, "Time-dependent Interactions of Glibenclamide with CFTR: Kinetically Complex Block of Macroscopic Currents," J Membrane Biol, vol. 201, no. 3, pp. 139–155, Nov. 2004.
-- Z.-R. Zhang, S. Zeltwanger, and N. A. McCarty, "Steady-State Interactions of Glibenclamide with CFTR: Evidence for Multiple Sites in the Pore," J Membrane Biol, vol. 199, no. 1, pp. 15–28, May 2004.
-- G. Cui, B. Song, H. W. Turki, and N. A. McCarty, "Differential contribution of TM6 and TM12 to the pore of CFTR identified by three sulfonylurea-based blockers," Pflugers Arch - Eur J Physiol, vol. 463, no. 3, pp. 405–418, Mar. 2012.
+- `Zhang_et_al_2004_Glib_macroscopic.pdf` — Z.-R. Zhang, G. Cui, S. Zeltwanger, and N. A. McCarty, "Time-dependent Interactions of Glibenclamide with CFTR: Kinetically Complex Block of Macroscopic Currents," J Membrane Biol, vol. 201, no. 3, pp. 139–155, Nov. 2004.
+- `Zhang_et_al_2004_Glib_single_channels.pdf` — Z.-R. Zhang, S. Zeltwanger, and N. A. McCarty, "Steady-State Interactions of Glibenclamide with CFTR: Evidence for Multiple Sites in the Pore," J Membrane Biol, vol. 199, no. 1, pp. 15–28, May 2004.
+- `Cui_et_al_2012_three_blockers.pdf` — G. Cui, B. Song, H. W. Turki, and N. A. McCarty, "Differential contribution of TM6 and TM12 to the pore of CFTR identified by three sulfonylurea-based blockers," Pflugers Arch - Eur J Physiol, vol. 463, no. 3, pp. 405–418, Mar. 2012.

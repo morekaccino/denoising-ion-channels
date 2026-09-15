@@ -1,0 +1,7 @@
+# Extra dependencies for code/04_ml.
+# Pinned: the saved .keras models load only with the TF/Keras 2.15 line
+# (Keras 3 refuses the legacy LSTM/initializer configs - see docs/STATUS.md).
+-r requirements.txt
+numpy<2
+tensorflow==2.15.1
+keras==2.15.0

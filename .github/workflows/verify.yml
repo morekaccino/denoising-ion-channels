@@ -1,0 +1,35 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run repo health checks
+        run: python scripts/verify_repo.py
+      - name: Core stack import smoke test
+        run: |
+          pip install -r requirements.txt
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+          import numpy, pandas, scipy, sklearn, matplotlib, plotly, neo, sympy
+          from source.moreka import AxonData
+          from source.ion_channel import IonChannel
+          from source.patch_clamp import PatchClamp
+          from source.sim import generate, moving_average
+          data = AxonData(dirname="data/raw")
+          assert len(data.filenames) == 53
+          pc = PatchClamp([IonChannel(n=200), IonChannel(n=200)])
+          assert pc.X.shape == (200,)
+          print("core stack OK")
+          PY
