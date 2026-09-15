@@ -1,0 +1,11 @@
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+plotly
+neo
+tensorflow>=2.15
+sympy
+jupyter
+ipykernel
