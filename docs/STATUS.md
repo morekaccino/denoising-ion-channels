@@ -25,6 +25,7 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 | 2024-12 | Thesis submitted |
 | 2026-09 | Repo curated into `masters-paper`; audits + reproducibility fixes; CI + verify script added |
 | 2026-09 | Saved models migrated to Keras 3 format; repo environment upgraded to Python 3.13 / TF 2.21 / Keras 3.15; end-to-end re-execution validated on the new stack |
+| 2026-09 | AGENTS.md: added mandatory "Documentation discipline" section so future agents keep docs in sync with every change |
 
 ## Thesis vs code discrepancies
 
