@@ -42,7 +42,9 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Machine-learning pipeline (code/04_ml) — installs tensorflow (~600 MB)
+# Machine-learning pipeline (code/04_ml) — installs tensorflow (~600 MB).
+# The saved .keras models require TF 2.15.1, which has no wheels for Python > 3.11:
+# create the venv with Python 3.11, e.g.  uv venv --python 3.11 .venv
 pip install -r requirements-ml.txt
 
 jupyter notebook

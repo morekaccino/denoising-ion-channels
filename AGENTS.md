@@ -33,7 +33,9 @@ Read `docs/STATUS.md` first — it records the current status, what was tried, k
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# ML pipeline (code/04_ml) additionally needs tensorflow
+# ML pipeline (code/04_ml) additionally needs tensorflow.
+# IMPORTANT: TF 2.15.1 (required by the saved .keras models) has no wheels for
+# Python > 3.11 - create the venv with Python 3.11 (e.g. `uv venv --python 3.11 .venv`).
 pip install -r requirements-ml.txt
 
 # Work with notebooks
