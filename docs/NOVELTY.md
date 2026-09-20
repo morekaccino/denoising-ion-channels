@@ -85,6 +85,17 @@ How many traces per rate table matter (bag ablation, v2a): top-direction R² is
 −0.29 for K = 1, 0.48 for K = 2, 0.68 for K = 4, and 0.73 for K = 6. Rates
 should be estimated from a group, not one short trace.
 
+Figures (frozen test, noise ×1), rendered by `code/04_ml/figures_kihmm_v2.py`:
+
+- `results/figures/kihmm_v2_predictions.png` — N=1/2/3 example traces with the
+  true and predicted open count (median examples per N).
+- `results/figures/kihmm_v2_state_shares.png` — average per-state counts,
+  per-state errors, and the N confusion matrix.
+- `results/figures/kihmm_v2_rate_scatter.png` — predicted vs true opening
+  rate, closing rate, p_open and the top identifiable direction.
+- `results/figures/kihmm_v2_rate_recovery.png` — per-rate R² and the Fisher
+  spectrum that explains why most rates cannot be recovered.
+
 Identifiability (exact decoder, 6 traces): Fisher eigenvalues span several
 orders of magnitude. The top direction is the O1↔O2 open-block kinetics
 (CRB ≈ 0.07 in log units), then open/closed cycle combinations (≈0.12–0.14);
