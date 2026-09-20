@@ -95,6 +95,7 @@ for f in ["source/ion_channel.py", "source/patch_clamp.py", "source/moreka.py",
           "requirements-ml.txt", "requirements-ml-torch.txt", "README.md", "AGENTS.md", "CLAUDE.md",
           "code/04_ml/benchmark.py", "code/04_ml/benchmark_v2.py", "code/04_ml/kinetics.py",
           "code/04_ml/torch_models_v2.py", "code/04_ml/train_kihmm_v2.py", "code/04_ml/eval_kihmm_v2.py",
+          "code/04_ml/torch_models_v3.py", "code/04_ml/train_kihmm_v3.py", "code/04_ml/refine_kihmm_v2.py",
           "code/04_ml/apply_kihmm_v2_real.py", "code/04_ml/figures_kihmm_v2.py",
           "docs/STATUS.md", "docs/PIPELINE.md", "docs/DATA.md", "docs/NOVELTY.md",
           "Kazemi_Mohammadreza_2024_MASc.pdf", "scripts/verify_repo.py"]:

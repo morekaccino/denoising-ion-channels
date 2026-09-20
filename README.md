@@ -33,7 +33,8 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │                                       and the novel-method track:
 │                                       benchmark.py + benchmark_v2.py (frozen benchmarks),
 │                                       kinetics.py (exact factorial-HMM decoder),
-│                                       torch_models_v2.py (N + state counts + rates)
+│                                       torch_models_v2.py (N + state counts + rates),
+│                                       torch_models_v3.py (neural HMM head)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation

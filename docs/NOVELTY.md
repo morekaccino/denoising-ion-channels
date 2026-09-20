@@ -81,6 +81,16 @@ Timestep accuracy at noise ×1/×2/×4 (step accuracy uses the count head):
 
 N = 4–5 extrapolation: N accuracy 96.6%, top-direction R² 0.60.
 
+KI-HMM v3 (`code/04_ml/torch_models_v3.py`) replaces the per-timestep count
+head with a neural HMM over the open count: emissions from the encoder plus
+exact forward–backward, transitions initialized from the biophysical count
+chain and corrected by gated neural nets conditioned on the predicted rates.
+On the same test set, open-count accuracy improves to **0.657 / 0.592 / 0.472**
+at noise ×1/×2/×4 (v2: 0.605 / 0.537 / 0.393) and state error drops to 0.307
+channels at ×1. N accuracy is 0.922 at ×1. Exact structured decoding with the
+model's own predicted N and rates still reaches 0.89 open accuracy
+(`refine_kihmm_v2.py`), so the remaining gap is the learned emission model.
+
 How many traces per rate table matter (bag ablation, v2a): top-direction R² is
 −0.29 for K = 1, 0.48 for K = 2, 0.68 for K = 4, and 0.73 for K = 6. Rates
 should be estimated from a group, not one short trace.
