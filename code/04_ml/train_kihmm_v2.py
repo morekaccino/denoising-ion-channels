@@ -40,6 +40,22 @@ def load(name: str = "train"):
     return X, d["y"], d["r"], d["N"], d["group"], d["R"], K
 
 
+def load_concat(names: str):
+    parts = [load(n.strip()) for n in names.split(",") if n.strip()]
+    Xs, ys, rs, Ns, gs, Rs = [], [], [], [], [], []
+    offset = 0
+    for X, y, r, N, g, R, K in parts:
+        Xs.append(X)
+        ys.append(y)
+        rs.append(r)
+        Ns.append(N)
+        gs.append(g + offset)
+        Rs.append(R)
+        offset += len(R)
+    return (np.concatenate(Xs), np.concatenate(ys), np.concatenate(rs),
+            np.concatenate(Ns), np.concatenate(gs), np.concatenate(Rs), parts[0][6])
+
+
 def batch_tensors(X, r, N, R, K, gids, k_use=None):
     ku = K if k_use is None else k_use
     idx = (np.asarray(gids)[:, None] * K + np.arange(ku)[None, :]).reshape(-1)
@@ -160,12 +176,13 @@ def main() -> None:
     parser.add_argument("--w-n", type=float, default=0.3)
     parser.add_argument("--w-state", type=float, default=1.0)
     parser.add_argument("--w-rate", type=float, default=1.0)
+    parser.add_argument("--train-splits", default="train,train_aug")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
     rng = np.random.default_rng(args.seed)
 
-    train = load("train")
+    train = load_concat(args.train_splits)
     val = load("val")
     print(f"train: {len(train[0])} traces, {len(train[5])} groups, K={train[6]}", flush=True)
     print(f"val:   {len(val[0])} traces, {len(val[5])} groups, K={val[6]}", flush=True)

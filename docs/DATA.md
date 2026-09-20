@@ -76,6 +76,8 @@ Each archive stores `X_s<scale>` (observed sum, float32), `y` (true open count, 
 | File | Traces × samples | Content |
 |---|---|---|
 | `train.npz` | 3072 × 1000 | 512 groups × 6 traces, N ∈ {1..5}, per-trace noise scale ∈ [1,4] (`X`, `trace_scale`) |
+| `train_aug.npz` | 3072 × 1000 | `train.npz` with per-trace augmentation (baseline wander, trend, AR(1) noise, light filtering; 20% left clean) |
+| `val_aug.npz` | 384 × 1000 | `val.npz` with the same augmentation |
 | `val.npz` | 384 × 1000 | 64 groups × 6 traces, N ∈ {1..5}, noise ×1 |
 | `test.npz` | 384 × 1000 | as val, at noise ×1/×2/×4 (`X_s1`, `X_s2`, `X_s4`) |
 | `extrap.npz` | 384 × 1000 | N ∈ {4,5} only, noise ×1/×2 |

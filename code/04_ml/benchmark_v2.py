@@ -26,6 +26,7 @@ import sys
 
 import numpy as np
 from scipy.linalg import expm
+from scipy.signal import lfilter
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "code" / "04_ml"))
@@ -260,6 +261,58 @@ def generate_all(dest: pathlib.Path = DEST, mini: bool = False, seed_shift: int 
     B.save_npz(dest / "mismatch_drift.npz", mm_drift, _meta("mismatch_drift", seeds["mismatch"], rate_drift_mult=3.0))
 
 
+def augment_trace(x: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """Add real-world mess to one trace: wander, trend, colored noise, filtering.
+
+    Labels (gating) are unchanged; only the observation is degraded.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    if rng.random() < 0.2:
+        return x.astype(np.float32)
+    s = x.std()
+    n = len(x)
+
+    walk = np.cumsum(rng.standard_normal(n))
+    walk = walk / (np.abs(walk).max() + 1e-9)
+    walk = np.convolve(walk, np.ones(51) / 51, mode="same")
+    x = x + rng.uniform(0.0, 0.6) * s * walk
+
+    trend = np.linspace(-0.5, 0.5, n)
+    x = x + rng.uniform(-0.5, 0.5) * s * trend
+
+    rho = rng.uniform(0.0, 0.9)
+    sigma = rng.uniform(0.0, 0.4) * s
+    if sigma > 0:
+        eps = rng.standard_normal(n) * sigma * np.sqrt(1 - rho**2)
+        x = x + lfilter([1.0], [1.0, -rho], eps)
+
+    w = int(rng.integers(1, 6))
+    if w > 1:
+        x = np.convolve(x, np.ones(w) / w, mode="same")
+    return x.astype(np.float32)
+
+
+def augment_split(data: dict[str, np.ndarray], seed: int) -> dict[str, np.ndarray]:
+    rng = np.random.default_rng(seed)
+    out = dict(data)
+    for key in [k for k in data if k.startswith("X")]:
+        X = data[key].copy()
+        for i in range(len(X)):
+            X[i] = augment_trace(X[i], rng)
+        out[key] = X
+    return out
+
+
+def generate_augmented(dest: pathlib.Path = DEST, mini: bool = False) -> None:
+    dest.mkdir(parents=True, exist_ok=True)
+    base_train = load_split("train", dest)
+    base_val = load_split("val", dest)
+    train = augment_split(base_train, seed=0 if mini else 7707)
+    val = augment_split(base_val, seed=1 if mini else 8808)
+    B.save_npz(dest / "train_aug.npz", train, _meta("train_aug", 7707))
+    B.save_npz(dest / "val_aug.npz", val, _meta("val_aug", 8808))
+
+
 def load_split(name: str, dest: pathlib.Path = DEST) -> dict[str, np.ndarray]:
     with np.load(dest / f"{name}.npz") as data:
         return {k: data[k] for k in data.files if k != "meta_json"}
@@ -293,12 +346,15 @@ def _info() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generate", action="store_true")
+    parser.add_argument("--augment", action="store_true")
     parser.add_argument("--mini", action="store_true")
     parser.add_argument("--info", action="store_true")
     args = parser.parse_args()
     if args.generate:
         generate_all(mini=args.mini)
-    if args.info or not args.generate:
+    if args.augment:
+        generate_augmented(mini=args.mini)
+    if args.info or not (args.generate or args.augment):
         _info()
 
 
