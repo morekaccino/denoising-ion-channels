@@ -35,6 +35,8 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 | 2026-09 | Plain-language KI-HMM explainer written and built as an iBooks-readable EPUB (`docs/explainer/KI-HMM_explained.epub`, Markdown source alongside; cover image generated once via a cheap OpenRouter image model) |
 | 2026-09 | KI-HMM prediction-vs-signal figures added: `code/04_ml/02_neural_hmm.ipynb`, `code/04_ml/results/figures/kihmm_predictions.png` (4 traces, inferred N correct on all; 90.6–99.4% per-trace accuracy) |
 | 2026-09 | Fair baseline retraining done (`train_baselines.py` → `results/baselines_synth_v1.json`). Frozen-test leaderboard — timestep accuracy at noise ×1/×2/×4: LSTM 81.2/57.1/32.4; combined CCNN+LSTM (thesis winner) 89.2/70.8/38.3; **KI-HMM 93.3/81.6/63.9**; exact decoder 96.3/83.4/67.2. Channel-count accuracy: CCNN 96.8% vs KI-HMM 100%. Transition accuracy: KI-HMM 87.1/69.6/51.9 vs combined 82.9/64.3/36.3 |
+| 2026-09 | Phase B (v2 track): **rate-randomized benchmark** — `code/04_ml/benchmark_v2.py` + `data/derived/synth_v2/` (512 train groups × 6 traces, N ∈ 1–5, noise scale 1–4; val/test/extrap + 5 mismatch sets; 26 MB, 8 s to generate). Each group has its own 12-rate table (×0.5–×2 log-uniform, open probability kept in 0.10–0.90); each trace has full 7-state labels `r`. Checks pass: per-state counts sum to N, open count matches `y`, rates positive. Added the missing `requirements-ml-torch.txt` referenced by PIPELINE |
+| 2026-09 | Phase C/D (v2 track): **KI-HMM v2** — `torch_models_v2.py` + `train_kihmm_v2.py` + `eval_kihmm_v2.py`. One TCN encoder → N head, per-state count head (a..g, sum = N), and 12-rate head (pooled over each group of traces). Fisher-information analysis of the exact decoder (`results/fisher_synth_v2.json`) shows only ~4 of 12 rate directions are identifiable from summed traces; the rate loss is therefore Fisher-weighted. Frozen-test results (64 groups × 6 traces): N accuracy 94.8/96.1/100% at noise ×1/×2/×4; per-state count MAE 0.32 channels (×1); identifiable-direction R² 0.73/0.48/0.17 (×1); effective Markov parameters: opening-rate R² 0.57, closing-rate R² 0.73, p_open R² 0.79, median relative error ~18%. Bag ablation: top-direction R² rises −0.29 → 0.73 as traces per group go 1 → 6 |
 
 ## Thesis vs code discrepancies
 
@@ -80,10 +82,13 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 
 ## Next steps (novel-method track, 2026-09)
 
-- [ ] Finish the fair baseline retraining (`train_baselines.py`) and fold the leaderboard into the KI-HMM notebook
-- [ ] Create `code/04_ml/02_neural_hmm.ipynb` (KI-HMM training/eval record; training script already produces the artefacts)
-- [ ] Phase 3–4: slot-attention/count-head comparisons and amortized Bayesian NPE
-- [ ] Phase 5: apply exact decoder + KI-HMM to real ABFs (start with index 3, `03n17003.abf`) and write the decision report
+- [x] Fair baseline retraining and leaderboard (`train_baselines.py` → `results/baselines_synth_v1.json`)
+- [x] KI-HMM training/eval record and prediction figures (`code/04_ml/02_neural_hmm.ipynb`)
+- [x] v2 benchmark: rate-randomized `synth_v2` + full 7-state labels (`code/04_ml/benchmark_v2.py`)
+- [x] v2 model: KI-HMM v2 — N + per-state counts (a..g, sum = N) + Markov parameters (`torch_models_v2.py`, `train_kihmm_v2.py`)
+- [x] Rate-recoverability study: Fisher analysis, per-direction R², bag-size ablation (`eval_kihmm_v2.py`)
+- [ ] Apply v2 to real ABFs, compare ± glibenclamide (start with index 3, `03n17003.abf`)
+- [ ] Optional: slot-attention / count-head comparisons and amortized Bayesian NPE
 
 ## Next steps (thesis)
 

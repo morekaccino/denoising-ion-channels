@@ -17,7 +17,7 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 ├── Kazemi_Mohammadreza_2024_MASc.pdf   Thesis
 ├── data/
 │   ├── raw/                            Raw patch-clamp recordings (.abf, 53 files)
-│   ├── derived/                        Frozen synthetic benchmark (synth_v1, regenerable)
+│   ├── derived/                        Frozen synthetic benchmarks (synth_v1 + synth_v2)
 │   └── references/                     Papers on glibenclamide block of CFTR
 ├── source/                             Core simulation/data-loading package
 │   ├── ion_channel.py                  7-state CFTR kinetic model
@@ -30,14 +30,16 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │   ├── 03_classical/                   DBSCAN / DBSCAN+BGMM analyses
 │   └── 04_ml/                          CCNN + LSTM notebooks, saved models,
 │                                       and the novel-method track:
-│                                       benchmark.py (frozen dataset + metrics),
-│                                       kinetics.py (exact factorial-HMM decoder)
+│                                       benchmark.py + benchmark_v2.py (frozen benchmarks),
+│                                       kinetics.py (exact factorial-HMM decoder),
+│                                       torch_models_v2.py (N + state counts + rates)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation
 ├── AGENTS.md                           Guide for AI coding agents (CLAUDE.md imports it)
 ├── requirements.txt                    Core dependencies
-└── requirements-ml.txt                 Extras for code/04_ml (tensorflow, keras)
+├── requirements-ml.txt                 Extras for code/04_ml (tensorflow, keras)
+└── requirements-ml-torch.txt           Extras for the novel-method track (torch)
 ```
 
 ## Quick start
@@ -52,6 +54,9 @@ pip install -r requirements.txt
 # for Python 3.14+, so create the venv with Python <= 3.13:
 #   uv venv --python 3.13 .venv
 pip install -r requirements-ml.txt
+
+# Novel-method track (KI-HMM) additionally needs torch:
+pip install -r requirements-ml-torch.txt
 
 jupyter notebook
 python scripts/verify_repo.py   # sanity check
