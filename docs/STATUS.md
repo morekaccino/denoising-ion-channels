@@ -37,6 +37,7 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 | 2026-09 | Fair baseline retraining done (`train_baselines.py` → `results/baselines_synth_v1.json`). Frozen-test leaderboard — timestep accuracy at noise ×1/×2/×4: LSTM 81.2/57.1/32.4; combined CCNN+LSTM (thesis winner) 89.2/70.8/38.3; **KI-HMM 93.3/81.6/63.9**; exact decoder 96.3/83.4/67.2. Channel-count accuracy: CCNN 96.8% vs KI-HMM 100%. Transition accuracy: KI-HMM 87.1/69.6/51.9 vs combined 82.9/64.3/36.3 |
 | 2026-09 | Phase B (v2 track): **rate-randomized benchmark** — `code/04_ml/benchmark_v2.py` + `data/derived/synth_v2/` (512 train groups × 6 traces, N ∈ 1–5, noise scale 1–4; val/test/extrap + 5 mismatch sets; 26 MB, 8 s to generate). Each group has its own 12-rate table (×0.5–×2 log-uniform, open probability kept in 0.10–0.90); each trace has full 7-state labels `r`. Checks pass: per-state counts sum to N, open count matches `y`, rates positive. Added the missing `requirements-ml-torch.txt` referenced by PIPELINE |
 | 2026-09 | Phase C/D (v2 track): **KI-HMM v2** — `torch_models_v2.py` + `train_kihmm_v2.py` + `eval_kihmm_v2.py`. One TCN encoder → N head, per-state count head (a..g, sum = N), and 12-rate head (pooled over each group of traces). Fisher-information analysis of the exact decoder (`results/fisher_synth_v2.json`) shows only ~4 of 12 rate directions are identifiable from summed traces; the rate loss is therefore Fisher-weighted. Frozen-test results (64 groups × 6 traces): N accuracy 94.8/96.1/100% at noise ×1/×2/×4; per-state count MAE 0.32 channels (×1); identifiable-direction R² 0.73/0.48/0.17 (×1); effective Markov parameters: opening-rate R² 0.57, closing-rate R² 0.73, p_open R² 0.79, median relative error ~18%. Bag ablation: top-direction R² rises −0.29 → 0.73 as traces per group go 1 → 6 |
+| 2026-09 | Phase E1 (v2 track): **real-data application** — `apply_kihmm_v2_real.py` runs the frozen v2 model on all 53 ABFs (10 s segments at 100 Hz, one group per file; 03n17005 too short, skipped). Result: **N transfers** (≈1 for 52/53 files, matching the lab note that most chunks contain one channel), but the **rate head does not transfer**: real groups sit outside the training range (mean \|Δlog rate\| 0.255 vs 0.145 on synthetic val; 21% of files hit the ±1 log-rate clamp vs 2%), and neither anti-alias filtering before decimation nor moving-average detrending fixes it. Conclusion: Markov-parameter estimation on real data needs domain-randomized retraining (drift / colored noise / SNR augmentation), not just preprocessing. Results in `code/04_ml/results/kihmm_v2_real.json` |
 
 ## Thesis vs code discrepancies
 
@@ -87,7 +88,9 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 - [x] v2 benchmark: rate-randomized `synth_v2` + full 7-state labels (`code/04_ml/benchmark_v2.py`)
 - [x] v2 model: KI-HMM v2 — N + per-state counts (a..g, sum = N) + Markov parameters (`torch_models_v2.py`, `train_kihmm_v2.py`)
 - [x] Rate-recoverability study: Fisher analysis, per-direction R², bag-size ablation (`eval_kihmm_v2.py`)
-- [ ] Apply v2 to real ABFs, compare ± glibenclamide (start with index 3, `03n17003.abf`)
+- [x] Apply v2 to real ABFs (`apply_kihmm_v2_real.py`): N works, rates do not transfer yet
+- [ ] E1b: domain-randomized retraining for real-data rates (add drift / colored noise / SNR augmentation to the training set, retrain, re-check clamp fraction and stability)
+- [ ] E2: ± glibenclamide comparison — blocked until the file→condition mapping is available
 - [ ] Optional: slot-attention / count-head comparisons and amortized Bayesian NPE
 
 ## Next steps (thesis)

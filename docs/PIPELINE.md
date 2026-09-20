@@ -31,7 +31,7 @@ v2 (stages 1b/2b) keeps the exact chain and adds a rate-randomized benchmark plu
 | 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
 | — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (done), results `code/04_ml/results/baselines_synth_v1.json` |
 | 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
-| 5 — Real data | Apply winner to `.abf` recordings; decision report | (planned) |
+| 5 — Real data (v2) | Frozen v2 applied to all 53 ABFs (N and effective rates per file). N transfers (≈1 everywhere); rates are out-of-distribution and need domain-randomized retraining | `code/04_ml/apply_kihmm_v2_real.py`, results `code/04_ml/results/kihmm_v2_real.json` |
 
 Plain-language explainer of the KI-HMM method (EPUB + Markdown): `docs/explainer/`.
 
