@@ -8,6 +8,7 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 - Data provenance and formats: [`docs/DATA.md`](docs/DATA.md)
 - Methodology and how-to-reproduce: [`docs/PIPELINE.md`](docs/PIPELINE.md)
 - Project status log, experiment history, known thesis-vs-code discrepancies: [`docs/STATUS.md`](docs/STATUS.md)
+- Illustrated plain-language book on the novel KI-HMM method (EPUB for iBooks, 29 figures, Markdown source): [`docs/explainer/KI-HMM_explained.epub`](docs/explainer/KI-HMM_explained.epub)
 
 ## Repository structure
 
@@ -16,6 +17,7 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 ├── Kazemi_Mohammadreza_2024_MASc.pdf   Thesis
 ├── data/
 │   ├── raw/                            Raw patch-clamp recordings (.abf, 53 files)
+│   ├── derived/                        Frozen synthetic benchmark (synth_v1, regenerable)
 │   └── references/                     Papers on glibenclamide block of CFTR
 ├── source/                             Core simulation/data-loading package
 │   ├── ion_channel.py                  7-state CFTR kinetic model
@@ -26,7 +28,10 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │   ├── 01_simulation/                  Synthetic data generation
 │   ├── 02_noise_modeling/              Noise distribution fitting on real data
 │   ├── 03_classical/                   DBSCAN / DBSCAN+BGMM analyses
-│   └── 04_ml/                          CCNN + LSTM notebooks and saved models
+│   └── 04_ml/                          CCNN + LSTM notebooks, saved models,
+│                                       and the novel-method track:
+│                                       benchmark.py (frozen dataset + metrics),
+│                                       kinetics.py (exact factorial-HMM decoder)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation

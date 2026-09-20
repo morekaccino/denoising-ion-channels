@@ -32,7 +32,7 @@ def check(condition, message):
 
 notebooks = sorted(glob.glob("code/**/*.ipynb", recursive=True))
 print(f"Notebooks found: {len(notebooks)}")
-check(len(notebooks) == 11, "expected 11 notebooks")
+check(len(notebooks) >= 12, f"at least 12 notebooks (got {len(notebooks)})")
 
 # Banned relative-path patterns from the pre-curation layout
 BANNED = [
@@ -86,7 +86,7 @@ pdf = sorted(glob.glob("data/references/*.pdf"))
 models = sorted(glob.glob("code/04_ml/models/*.keras"))
 check(len(abf) == 53, f"53 .abf recordings (got {len(abf)})")
 check(len(pdf) == 3, f"3 reference PDFs (got {len(pdf)})")
-check(len(models) == 3, f"3 .keras models (got {len(models)})")
+check(len(models) >= 3, f"at least the 3 thesis .keras models (got {len(models)})")
 check(all(" " not in p for p in pdf), "reference PDF filenames have no spaces")
 
 print("Core files:")

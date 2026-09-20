@@ -15,6 +15,24 @@ How each part of the thesis maps to the code in this repository, in execution or
 | Real-data application | Classical + LSTM applied to `.abf` recordings | `code/03_classical/on_real_data.ipynb`, `code/04_ml/LSTM_normalized_50_50_real_data.ipynb` |
 | — | Open-probability estimation with BGMM + sympy | `code/02_noise_modeling/normalization.ipynb` |
 
+## Novel-method track (2026-09, in progress)
+
+Goal: a method that has never been applied to multi-channel CFTR counting — **KI-HMM**, a kinetics-informed neural HMM that learns per-sample emissions but performs exact structured inference through the biophysical count-state chain, and infers N trans-dimensionally by marginal likelihood (the thesis dismissed FHMMs as intractable for multi-channel, and factor-graph inference is single-channel only).
+
+| Stage | What it does | Code |
+|---|---|---|
+| 0 — Benchmark | Seeded frozen dataset + metrics (per-N, transition-window, calibration, N) | `code/04_ml/benchmark.py`, `data/derived/synth_v1/` |
+| 1 — Exact decoder | Count-state factorial HMM, exact sum-of-GH emissions, forward–backward, evidence-based N | `code/04_ml/kinetics.py`, `code/04_ml/01_exact_factorial_hmm.ipynb` |
+| 2 — KI-HMM | Neural sequence encoder + exact kinetic-chain layer + N-agnostic count head; trained on mixed N and noise scales; prediction-vs-signal figures | `code/04_ml/torch_models.py`, `code/04_ml/train_kihmm.py`, `code/04_ml/02_neural_hmm.ipynb`, model `code/04_ml/models/kihmm_synth_v1.pt`, results/figures in `code/04_ml/results/` |
+| 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
+| — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (running), results `code/04_ml/results/baselines_synth_v1.json` |
+| 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
+| 5 — Real data | Apply winner to `.abf` recordings; decision report | (planned) |
+
+Plain-language explainer of the KI-HMM method (EPUB + Markdown): `docs/explainer/`.
+
+Environment for stages 2–4: `requirements-ml-torch.txt` (torch with CUDA; TF/Keras stack untouched). TensorFlow and PyTorch both see the GTX 1660 SUPER (6 GB) after `uv pip install "tensorflow[and-cuda]" torch`.
+
 ## Saved models
 
 `code/04_ml/models/` contains the trained Keras models:

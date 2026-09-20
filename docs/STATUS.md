@@ -26,6 +26,15 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 | 2026-09 | Repo curated into `masters-paper`; audits + reproducibility fixes; CI + verify script added |
 | 2026-09 | Saved models migrated to Keras 3 format; repo environment upgraded to Python 3.13 / TF 2.21 / Keras 3.15; end-to-end re-execution validated on the new stack |
 | 2026-09 | AGENTS.md: added mandatory "Documentation discipline" section so future agents keep docs in sync with every change |
+| 2026-09 | Thesis re-read to anchor the novel-method track; novelty gaps: FHMMs dismissed as intractable for multi-channel (3.4.1), factor-graph/HMM inference is single-channel only (1.2.3.3), future work asks for kinetics-integrated DL, semi-supervised learning, efficient architectures (4.1.3) |
+| 2026-09 | Phase 0: frozen benchmark added — `code/04_ml/benchmark.py` + `data/derived/synth_v1/` (seeded train/val/test, N∈1–3 and 4–5 extrapolation, noise ×1/×2/×4, mismatch variants) with per-N, transition-window, calibration and N-estimation metrics the thesis never reported |
+| 2026-09 | Phase 1: exact factorial-HMM decoder — `code/04_ml/kinetics.py` (count-state chain, sum-of-GH emissions via FFT, forward–backward, evidence-based N). Frozen-test results (notebook `01_exact_factorial_hmm.ipynb`, JSON in `code/04_ml/results/`): **96.3 / 83.4 / 67.2%** timestep accuracy at noise ×1/×2/×4; **100% N accuracy** (600 traces, signal likelihood); N=4–5 extrapolation **86.5%** at ×1 |
+| 2026-09 | Phase 2: **KI-HMM** (`code/04_ml/torch_models.py`, `train_kihmm.py`) — neural TCN emissions + exact kinetic-chain forward pass + N-agnostic count head, trained on 3000 mixed-N traces with per-trace noise scale 1–4. Frozen test: **93.3 / 81.6 / 63.9%** at ×1/×2/×4 with **100% N accuracy** from the learned count head; N=4–5 extrapolation 77.6%; close to the Bayes-optimal decoder without knowing N, rates or noise scale |
+| 2026-09 | Mismatch benchmark (lowpass, Gaussian, correlated, drift): exact decoder remains strongest (e.g. drift 94.4% vs KI-HMM 90.4%); Gaussian-noise robustness confirmed (95.9%). Evidence-based N selection is unreliable across N (~30%) — the learned count head is the N estimator |
+| 2026-09 | Illustrated edition of the KI-HMM explainer (15 chapters, ~5.2k words, 29 figures: 14 AI illustrations via cheap OpenRouter image model + 13 exact matplotlib diagrams + result figures). Worked math appendix covers C(N+6,6), stars and bars, 84/462, expm2-state example, logsumexp, convolution. Source: `docs/explainer/KI-HMM_explained.md`, book: `docs/explainer/KI-HMM_explained.epub` |
+| 2026-09 | Plain-language KI-HMM explainer written and built as an iBooks-readable EPUB (`docs/explainer/KI-HMM_explained.epub`, Markdown source alongside; cover image generated once via a cheap OpenRouter image model) |
+| 2026-09 | KI-HMM prediction-vs-signal figures added: `code/04_ml/02_neural_hmm.ipynb`, `code/04_ml/results/figures/kihmm_predictions.png` (4 traces, inferred N correct on all; 90.6–99.4% per-trace accuracy) |
+| 2026-09 | Fair baseline retraining done (`train_baselines.py` → `results/baselines_synth_v1.json`). Frozen-test leaderboard — timestep accuracy at noise ×1/×2/×4: LSTM 81.2/57.1/32.4; combined CCNN+LSTM (thesis winner) 89.2/70.8/38.3; **KI-HMM 93.3/81.6/63.9**; exact decoder 96.3/83.4/67.2. Channel-count accuracy: CCNN 96.8% vs KI-HMM 100%. Transition accuracy: KI-HMM 87.1/69.6/51.9 vs combined 82.9/64.3/36.3 |
 
 ## Thesis vs code discrepancies
 
@@ -49,6 +58,8 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 - **LSTM window sizes 10/20/30/40/50** — larger windows overfit (training/validation divergence); the committed pipelines use the 50/50 normalized configuration. "Garbage in, garbage out."
 - **LSTM sizes** — anything > 4 neurons worked; the committed model uses 100 units.
 - **Combined CCNN + LSTM** — final answer; handles noise and temporal context far better than classical methods; minor misclassifications at the first points of state transitions.
+- **Exact factorial HMM for multi-channel counting** (2026-09, novel-method track) — the summed patch clamp is a count-state Markov chain, so the Bayes-optimal decoder is computable exactly; on the frozen benchmark it beats the thesis's reported numbers with no training. Key correction discovered on the way: the open-state generalized-hyperbolic noise is **heavy-tailed, not negligible** (per-channel std 0.232 vs closed 0.128), so treating the open level as a point mass breaks the decoder; both open and closed densities must be convolved exactly.
+- **KI-HMM design bugs found and fixed** (recorded so they are not re-introduced): (1) `-inf` masking in log-space HMM backward produces NaN gradients (`exp(-inf - (-inf))`) — use a large finite mask (`MASK_NEG = -1e6`); (2) the channel-count head must be N-agnostic (pooled features *before* the N-conditioned FiLM) or it learns to read N off the conditioning embedding instead of the signal (35% → 100% N accuracy after the fix); (3) the open-state GH noise is heavy-tailed and cannot be treated as a delta in likelihood-based decoders.
 - Dead ends / superseded artifacts (excluded from this repo): `with_sympy.py`, `results.txt`, `main.ipynb`, `considering-noise.ipynb`, early non-normalized LSTM notebooks.
 
 ## Known fragilities (code-level)
@@ -67,7 +78,14 @@ Repository restructure done in two passes (Sep 2026): first curated the code/dat
 - LSTM training is computationally expensive for long sequences.
 - Supervised approach requires labeled data, which is scarce in electrophysiology.
 
-## Next steps
+## Next steps (novel-method track, 2026-09)
+
+- [ ] Finish the fair baseline retraining (`train_baselines.py`) and fold the leaderboard into the KI-HMM notebook
+- [ ] Create `code/04_ml/02_neural_hmm.ipynb` (KI-HMM training/eval record; training script already produces the artefacts)
+- [ ] Phase 3–4: slot-attention/count-head comparisons and amortized Bayesian NPE
+- [ ] Phase 5: apply exact decoder + KI-HMM to real ABFs (start with index 3, `03n17003.abf`) and write the decision report
+
+## Next steps (thesis)
 
 - [ ] Validate on a more diverse set of real patch-clamp recordings
 - [ ] Explore CNN / transformer architectures to reduce training cost
