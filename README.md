@@ -8,6 +8,7 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 - Data provenance and formats: [`docs/DATA.md`](docs/DATA.md)
 - Methodology and how-to-reproduce: [`docs/PIPELINE.md`](docs/PIPELINE.md)
 - Project status log, experiment history, known thesis-vs-code discrepancies: [`docs/STATUS.md`](docs/STATUS.md)
+- Novelty, method, and results of KI-HMM v2 (paper-ready): [`docs/NOVELTY.md`](docs/NOVELTY.md)
 - Illustrated plain-language book on the novel KI-HMM method (EPUB for iBooks, 29 figures, Markdown source): [`docs/explainer/KI-HMM_explained.epub`](docs/explainer/KI-HMM_explained.epub)
 
 ## Repository structure

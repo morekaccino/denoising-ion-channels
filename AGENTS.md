@@ -27,7 +27,7 @@ The docs are this repo's memory — future agents and the human rely on them to 
 - `code/03_classical/` — DBSCAN and DBSCAN+BGMM analyses
 - `code/04_ml/` — CCNN + LSTM notebooks; `code/04_ml/models/` holds saved `.keras` models
 - `data/raw/` — 53 raw `.abf` recordings (read-only); `data/references/` — background papers
-- `docs/` — `DATA.md` (provenance), `PIPELINE.md` (thesis-section → code map), `STATUS.md` (status log)
+- `docs/` — `DATA.md` (provenance), `PIPELINE.md` (thesis-section → code map), `STATUS.md` (status log), `NOVELTY.md` (v2 novelty + results)
 - `scripts/verify_repo.py` — repo health smoke test (notebook validity, path resolution, counts)
 
 ## Conventions
