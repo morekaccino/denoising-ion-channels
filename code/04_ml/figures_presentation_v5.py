@@ -161,6 +161,132 @@ def architecture_figure() -> None:
     save(fig, "v5_architecture.png")
 
 
+def architecture_detail_figure() -> None:
+    """Full v5 path with every learned and non-learned step labeled."""
+    fig, ax = plt.subplots(figsize=(18, 10))
+    ax.axis("off")
+    ax.set_xlim(0, 120)
+    ax.set_ylim(0, 82)
+
+    colors = {
+        "nn": "#dbeafe",
+        "density": "#dcfce7",
+        "exact": "#f3e8ff",
+        "search": "#fef3c7",
+        "data": "#e2e8f0",
+        "output": "#fee2e2",
+    }
+
+    def box(x, y, w, h, label, kind, size=9):
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, y),
+                w,
+                h,
+                boxstyle="round,pad=0.8",
+                facecolor=colors[kind],
+                edgecolor="#334155",
+                linewidth=1.2,
+            )
+        )
+        ax.text(x + w / 2, y + h / 2, label, ha="center", va="center", fontsize=size)
+
+    def arrow(x1, y1, x2, y2, label=None):
+        ax.add_patch(
+            FancyArrowPatch(
+                (x1, y1),
+                (x2, y2),
+                arrowstyle="-|>",
+                mutation_scale=15,
+                color="#334155",
+                linewidth=1.3,
+            )
+        )
+        if label:
+            ax.text((x1 + x2) / 2, (y1 + y2) / 2 + 1.2, label, ha="center", fontsize=7)
+
+    ax.text(
+        60,
+        79,
+        "KI HMM v5: learned proposal, exact HMM inference",
+        ha="center",
+        fontsize=17,
+        fontweight="bold",
+    )
+    legend = [
+        ("Neural network", "nn"),
+        ("Learned probability model", "density"),
+        ("Exact math, no learned weights", "exact"),
+        ("Test time search, no learned weights", "search"),
+    ]
+    for i, (label, kind) in enumerate(legend):
+        x = 9 + i * 28
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, 72),
+                4,
+                3,
+                boxstyle="round,pad=0.2",
+                facecolor=colors[kind],
+                edgecolor="#334155",
+            )
+        )
+        ax.text(x + 5, 73.5, label, va="center", fontsize=8)
+
+    box(2, 41, 11, 9, "INPUT\nsummed current\none trace", "data")
+
+    ax.text(32, 66, "LEARNED FROM SYNTHETIC DATA", ha="center", fontsize=11, fontweight="bold")
+    box(18, 55, 14, 8, "NN 1\namplitude histogram\nplus MLP", "nn")
+    box(38, 55, 14, 8, "FAST OUTPUT\nN proposal", "output")
+    arrow(13, 47, 18, 59)
+    arrow(32, 59, 38, 59)
+
+    box(18, 40, 14, 8, "NN 2\nTCN encoder\nplus MLP", "nn")
+    box(38, 40, 14, 8, "FAST OUTPUT\nnoise scale", "output")
+    arrow(13, 45, 18, 44)
+    arrow(32, 44, 38, 44)
+
+    box(18, 25, 14, 8, "LEARNED DENSITY\nopen and closed\nGaussian mixtures", "density")
+    box(38, 25, 14, 8, "LIKELIHOOD\np(current | k, N)\nfor k = 0 ... N", "density")
+    arrow(13, 43, 18, 29)
+    arrow(32, 29, 38, 29)
+
+    box(18, 10, 14, 8, "NN 3\ndwell TCN\nplus group pooling", "nn")
+    box(38, 10, 14, 8, "FAST OUTPUT\n12 initial rates", "output")
+    arrow(13, 42, 18, 14)
+    arrow(32, 14, 38, 14)
+
+    ax.text(77, 66, "EXACT HMM, NO LEARNED WEIGHTS", ha="center", fontsize=11, fontweight="bold")
+    box(59, 52, 16, 9, "EXACT MATH\nrates -> 7 x 7 R\nP = exp(dt R)", "exact")
+    box(82, 52, 16, 9, "EXACT MATH\ncount state chain\nfor candidate N", "exact")
+    arrow(52, 14, 59, 56)
+    arrow(75, 56, 82, 56)
+
+    box(59, 36, 16, 9, "EXACT HMM\nforward and\nbackward pass", "exact")
+    box(82, 36, 16, 9, "RESULT PER N\nlog evidence\nstate posterior", "exact")
+    arrow(52, 29, 59, 40)
+    arrow(90, 52, 71, 45)
+    arrow(75, 40, 82, 40)
+
+    ax.text(106, 66, "FINAL INFERENCE", ha="center", fontsize=11, fontweight="bold")
+    box(103, 51, 14, 10, "SEARCH\nrun N = 1 ... 5\nkeep highest\nevidence", "search", 8)
+    box(103, 34, 14, 10, "OPTIMIZE\nAdam improves\nrates and noise\nusing evidence", "search", 8)
+    box(103, 15, 14, 12, "FINAL OUTPUT\nN\nopen count\na ... g counts\nmeasurable rates", "output", 8)
+    arrow(98, 40, 103, 56)
+    arrow(110, 51, 110, 44)
+    arrow(110, 34, 110, 27)
+
+    ax.text(
+        60,
+        3,
+        "Blue blocks are neural networks. Green is learned but is not a neural network. "
+        "Purple and yellow blocks use fixed equations and test time optimization.",
+        ha="center",
+        fontsize=10,
+    )
+    save(fig, "v5_architecture_detailed.png")
+
+
 def representative_index(data: dict[str, np.ndarray], n: int) -> int:
     mask = (data["N_true"] == n) & (data["N_pred"] == n)
     idx = np.flatnonzero(mask)
@@ -489,6 +615,7 @@ def main() -> None:
     data, metrics = load_results()
     summary_figure(metrics)
     architecture_figure()
+    architecture_detail_figure()
     for n in range(1, 6):
         example_figure(data, n)
     open_confusion_figure(data)
