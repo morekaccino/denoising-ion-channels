@@ -40,7 +40,9 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │                                       and learned emission density),
 │                                       torch_models_v4.py (current best model),
 │                                       infer_v5.py (evidence-based N + rate refinement),
-│                                       bakeoff.py (architecture comparison harness)
+│                                       bakeoff.py (architecture comparison harness),
+│                                       presentation_results.py +
+│                                       figures_presentation_v5.py (final result report)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation

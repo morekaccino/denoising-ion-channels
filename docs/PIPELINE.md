@@ -40,6 +40,7 @@ v4 (stages 2e–2g) closes the loop that v2 and v3 left open: both predicted a r
 | 2h — Exact inference (v5) | Use the learned likelihood instead of the heads: pick N by log evidence, then refine the 12 rates and the per-trace noise scale by Adam on that same evidence. No retraining needed. Evidence runs on MPS, refinement on CPU | `code/04_ml/infer_v5.py`, results `code/04_ml/results/kihmm_v5_infer.json` |
 | 2i — Architecture bake-off | Caches the expensive tensors once, then ranks 11 count-head and 12 rate-head designs plus three backbones in seconds each. Conclusion: architecture barely matters, training data and optimiser coupling do | `code/04_ml/bakeoff.py`, results `code/04_ml/results/bakeoff_count.json` and `bakeoff_rates.json` |
 | 2j — KI-HMM v5a | v4 retrained with the bake-off lessons: 3x training groups and a separate gradient clip and learning rate for the trace-level heads. With the v5 inference on top, test ×1 reaches N 0.951, open-count accuracy 0.853, per-state MAE 0.255, rate direction R² [0.874, 0.682, 0.390, 0.213] | `train_kihmm_v4.py --train-splits train,train_extra --n-head level --rate-stats`, model `code/04_ml/models/kihmm_v4_v5a.pt`, results `code/04_ml/results/kihmm_v5_eval.json` |
+| — v5 presentation | Cache the best-stage per-trace predictions; calculate total, per-N, per-state, transition, dwell, noise and rate metrics; render direct predicted-vs-true figures; apply v5a to real ABFs for unlabeled display only | `code/04_ml/presentation_results.py`, `figures_presentation_v5.py`, `presentation_real_v5.py`, metrics in `code/04_ml/results/presentation_v5_metrics.json` |
 | 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
 | — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (done), results `code/04_ml/results/baselines_synth_v1.json` |
 | 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
@@ -75,6 +76,11 @@ python code/04_ml/figures_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v5a.pt 
 python code/04_ml/bakeoff.py --build-cache --extra
 python code/04_ml/bakeoff.py --task count --extra
 python code/04_ml/bakeoff.py --task rates --extra
+
+# presentation metrics and figures
+python code/04_ml/presentation_results.py
+python code/04_ml/figures_presentation_v5.py
+python code/04_ml/presentation_real_v5.py
 ```
 
 ## Saved models
