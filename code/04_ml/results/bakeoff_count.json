@@ -1,0 +1,74 @@
+{
+  "reference: evidence pass": {
+    "train": 0.9947,
+    "val": 0.9583,
+    "test": 0.9401
+  },
+  "reference: v4b count head": {
+    "train": 0.9843,
+    "val": 0.9479,
+    "test": 0.9089
+  },
+  "MLP on histogram (v4b input)": {
+    "train": 0.9983,
+    "val": 0.9948,
+    "test": 0.9948,
+    "seconds": 5.3,
+    "params": 26629
+  },
+  "MLP on multi-res pyramid": {
+    "train": 0.9988,
+    "val": 0.9922,
+    "test": 0.9792,
+    "seconds": 5.7,
+    "params": 48005
+  },
+  "MLP on quantile curve": {
+    "train": 0.9952,
+    "val": 0.9688,
+    "test": 0.9531,
+    "seconds": 5.3,
+    "params": 25477
+  },
+  "CNN over histogram": {
+    "train": 0.9983,
+    "val": 0.9948,
+    "test": 0.9948,
+    "seconds": 312.2,
+    "params": 19525
+  },
+  "Deep Sets over raw samples": {
+    "train": 0.9939,
+    "val": 0.974,
+    "test": 0.9896,
+    "seconds": 108.2,
+    "params": 46149
+  },
+  "ordinal CORAL on histogram": {
+    "train": 0.9974,
+    "val": 0.9948,
+    "test": 0.9896,
+    "seconds": 3.0,
+    "params": 26117
+  },
+  "MLP on pyramid + evidence": {
+    "train": 0.9999,
+    "val": 0.9948,
+    "test": 0.987,
+    "seconds": 3.8,
+    "params": 48645
+  },
+  "MLP on evidence only": {
+    "train": 0.999,
+    "val": 0.9635,
+    "test": 0.9427,
+    "seconds": 1.4,
+    "params": 709
+  },
+  "MLP on pyramid, evidence-distilled": {
+    "train": 0.9976,
+    "val": 0.9896,
+    "test": 0.9792,
+    "seconds": 6.4
+  }
+}

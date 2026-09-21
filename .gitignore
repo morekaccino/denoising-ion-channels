@@ -21,3 +21,4 @@ results.txt
 # (see docs/STATUS.md), so it is not part of the frozen benchmark.
 data/derived/chain_index/
 data/derived/synth_v2/train_extra.npz
+data/derived/bakeoff_cache/

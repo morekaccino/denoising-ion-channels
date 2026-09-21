@@ -38,7 +38,9 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │                                       chain_index.py + torch_kinetics.py +
 │                                       torch_emissions.py (differentiable kinetics
 │                                       and learned emission density),
-│                                       torch_models_v4.py (current best model)
+│                                       torch_models_v4.py (current best model),
+│                                       infer_v5.py (evidence-based N + rate refinement),
+│                                       bakeoff.py (architecture comparison harness)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation
@@ -76,7 +78,7 @@ Every notebook starts with a bootstrap cell that locates the repo root, so noteb
 2. **Model noise** by fitting generalized hyperbolic distributions to real recordings (`code/02_noise_modeling/`)
 3. **Cluster** with DBSCAN and DBSCAN+BGMM (`code/03_classical/`)
 4. **Learn** ion-channel count (CCNN) and point-wise state (LSTM) (`code/04_ml/`)
-5. **Novel track**: KI-HMM, one network that outputs the channel count, the per-state counts and the Markov rates, and decodes with the rate table it predicts (`code/04_ml/torch_models_v4.py`, see [`docs/NOVELTY.md`](docs/NOVELTY.md))
+5. **Novel track**: KI-HMM, one network that outputs the channel count, the per-state counts and the Markov rates, decodes with the rate table it predicts, and at inference uses its own learned likelihood to select the channel count and refine the rates (`code/04_ml/torch_models_v4.py`, `code/04_ml/infer_v5.py`, see [`docs/NOVELTY.md`](docs/NOVELTY.md))
 
 ## Rights note
 

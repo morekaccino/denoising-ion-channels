@@ -52,7 +52,7 @@ def collect(model, data: dict, device: str, per_batch: int = 8):
     return np.concatenate(counts), np.concatenate(e_open), np.concatenate(n_hat).astype(int)
 
 
-def figure_predictions(X, y, N_true, n_hat, e_open, counts, counts_true, scale: str) -> None:
+def figure_predictions(X, y, N_true, n_hat, e_open, counts, counts_true, scale: str, prefix: str) -> None:
     per_trace = (np.round(e_open) == y).mean(axis=1)
     fig, axes = plt.subplots(3, 1, figsize=(15, 10), sharex=True)
     for ax, n_val in zip(axes, (1, 2, 3)):
@@ -75,13 +75,13 @@ def figure_predictions(X, y, N_true, n_hat, e_open, counts, counts_true, scale: 
         h2, l2 = ax2.get_legend_handles_labels()
         ax.legend(h1 + h2, l1 + l2, loc="upper right", fontsize=8, ncol=3)
     axes[-1].set_xlabel("time (samples, 100 Hz)")
-    fig.suptitle(f"KI-HMM v4 predictions vs truth (frozen test, noise x{scale})", fontsize=12)
+    fig.suptitle(f"{prefix} predictions vs truth (frozen test, noise x{scale})", fontsize=12)
     fig.tight_layout()
-    fig.savefig(FIGURES / "kihmm_v4_predictions.png", dpi=130)
-    print("saved", FIGURES / "kihmm_v4_predictions.png")
+    fig.savefig(FIGURES / f"{prefix}_predictions.png", dpi=130)
+    print("saved", FIGURES / f"{prefix}_predictions.png")
 
 
-def figure_state_shares(counts, counts_true, N_true, n_hat) -> None:
+def figure_state_shares(counts, counts_true, N_true, n_hat, prefix: str) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.2))
     w = 0.38
     axes[0].bar(np.arange(7) - w / 2, counts_true.mean(axis=(0, 2)), w, label="true")
@@ -110,11 +110,11 @@ def figure_state_shares(counts, counts_true, N_true, n_hat) -> None:
     axes[2].set_title(f"N confusion (acc={np.mean(N_true == n_hat):.3f})")
     fig.colorbar(im, ax=axes[2], fraction=0.046)
     fig.tight_layout()
-    fig.savefig(FIGURES / "kihmm_v4_state_shares.png", dpi=130)
-    print("saved", FIGURES / "kihmm_v4_state_shares.png")
+    fig.savefig(FIGURES / f"{prefix}_state_shares.png", dpi=130)
+    print("saved", FIGURES / f"{prefix}_state_shares.png")
 
 
-def figure_rates(pred_log, true_log, scale: str) -> None:
+def figure_rates(pred_log, true_log, scale: str, prefix: str) -> None:
     eff_p, eff_t = effective_params(np.exp(pred_log)), effective_params(np.exp(true_log))
     evals, evecs = np.linalg.eigh(
         np.asarray(json.loads((RESULTS / "fisher_synth_v2.json").read_text())["fisher"]))
@@ -135,10 +135,10 @@ def figure_rates(pred_log, true_log, scale: str) -> None:
         ax.set_xlabel("true")
         ax.set_ylabel("predicted")
         ax.set_title(f"{title}: R2={r2(py, tx):.2f}")
-    fig.suptitle(f"KI-HMM v4 Markov-parameter recovery per group (test x{scale})", fontsize=12)
+    fig.suptitle(f"{prefix} Markov-parameter recovery per group (test x{scale})", fontsize=12)
     fig.tight_layout()
-    fig.savefig(FIGURES / "kihmm_v4_rate_scatter.png", dpi=130)
-    print("saved", FIGURES / "kihmm_v4_rate_scatter.png")
+    fig.savefig(FIGURES / f"{prefix}_rate_scatter.png", dpi=130)
+    print("saved", FIGURES / f"{prefix}_rate_scatter.png")
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 4.2))
     axes[0].bar(range(12), [r2(pred_log[:, j], true_log[:, j]) for j in range(12)])
@@ -153,8 +153,8 @@ def figure_rates(pred_log, true_log, scale: str) -> None:
     axes[1].set_title("how much rate info the signal carries")
     axes[1].legend()
     fig.tight_layout()
-    fig.savefig(FIGURES / "kihmm_v4_rate_recovery.png", dpi=130)
-    print("saved", FIGURES / "kihmm_v4_rate_recovery.png")
+    fig.savefig(FIGURES / f"{prefix}_rate_recovery.png", dpi=130)
+    print("saved", FIGURES / f"{prefix}_rate_recovery.png")
     print(f"effective R2: opening={r2(eff_p[:,0], eff_t[:,0]):.3f} "
           f"closing={r2(eff_p[:,1], eff_t[:,1]):.3f} p_open={r2(eff_p[:,2], eff_t[:,2]):.3f}")
 
@@ -164,6 +164,7 @@ def main() -> None:
     parser.add_argument("--model", default=str(ROOT / "code" / "04_ml" / "models" / "kihmm_v4_v4a.pt"))
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--scale", default="1")
+    parser.add_argument("--prefix", default="kihmm_v4")
     args = parser.parse_args()
 
     model = load_model(args.model, args.device)
@@ -175,10 +176,11 @@ def main() -> None:
           f"state_mae={np.abs(counts - counts_true).mean():.3f} "
           f"open_acc={(np.round(e_open) == data['y']).mean():.3f}")
 
-    figure_predictions(data["X"], data["y"], data["N"], n_hat, e_open, counts, counts_true, args.scale)
-    figure_state_shares(counts, counts_true, data["N"], n_hat)
+    figure_predictions(data["X"], data["y"], data["N"], n_hat, e_open, counts, counts_true,
+                       args.scale, args.prefix)
+    figure_state_shares(counts, counts_true, data["N"], n_hat, args.prefix)
     pred_log, true_log = predict_rates(model, data, args.device)
-    figure_rates(pred_log, true_log, args.scale)
+    figure_rates(pred_log, true_log, args.scale, args.prefix)
 
 
 if __name__ == "__main__":

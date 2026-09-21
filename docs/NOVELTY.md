@@ -157,20 +157,100 @@ Where the remaining ×1 gap sits: forcing the true N raises v4b from 0.815 to
 0.885, so roughly two thirds of what is left is the channel-count head, and it
 fails almost entirely on N=4 versus N=5 (25 of its 35 test errors).
 
-Two honest negatives from this round:
+Two honest negatives from this round, the first of which v5 fixes:
 
 1. **Rate recovery regressed.** Identifiable-direction R² on test ×1 is
    0.36 / 0.29 for v4b against 0.73 / 0.48 for v2a. v2's rate head read a
    supervised, temporally smooth per-timestep state posterior; v4's reads a
    pointwise emission-derived open probability, because the smoothed posterior
    is only available after the rates and comes back detached. Raising the rate
-   weight and doubling the training crop made it worse. The untried fix is a
-   two-pass rate head: decode once with the base chain, then feed that posterior
-   to the rate head.
+   weight and doubling the training crop made it worse.
 2. **Colored noise breaks it.** On the AR(1) mismatch split open accuracy falls
    to 0.33, because the learned emission assumes independent samples. The other
    mismatch splits are fine or better than the base case (drift 0.917,
    Gaussian noise 0.884, lowpass 0.758).
+
+## KI-HMM v5: stop reading the answer off a head, ask the likelihood
+
+v4 learns a complete generative model of a recording -- a per-channel emission
+density and the exact occupancy-count chain -- and then discards most of it at
+inference, reading the channel count off a classifier and the rates off a
+regressor. v5 (`code/04_ml/infer_v5.py`) keeps the network exactly as trained
+and changes only what happens at inference:
+
+- **Channel count by model evidence.** Score every candidate N with the
+  network's own log evidence and take the best. This is exact Bayesian model
+  selection over a discrete latent, carried out with the model's own layers.
+- **Rates and noise scale by maximum likelihood.** Maximise that same log
+  evidence over the 12 rates (shared by a group) and the per-trace noise scale
+  with Adam through the differentiable chain. The scale matters: the trained
+  head reads 1.28 on noise ×1 data, and fitting it cuts log-scale error from
+  0.249 to 0.076.
+
+Two details decide whether this works. Maximisation must be penalised toward
+the base rate table, because at noise ×4 most rate directions carry essentially
+no information and an unpenalised fit wanders; with the penalty it becomes MAP
+estimation and, as a bonus, noise ×1 improves too (R² [0.731, 0.643, −1.47,
+−1.38] becomes [0.778, 0.685, 0.310, 0.194]). And refinement is skipped outright
+above an estimated noise scale of 2.5, where it is a small net loss.
+
+`v5a` is v4 retrained with two lessons from the bake-off below: three times as
+many training groups, and a separate gradient clip and learning rate for the
+trace-level heads.
+
+| Model, frozen test ×1 | open-count acc | per-state MAE | N acc | direction R² |
+|---|---|---|---|---|
+| v2a | 0.605 | 0.318 | 0.948 | [0.73, 0.48, 0.17, −0.19] |
+| v3a | 0.657 | 0.308 | 0.922 | [0.77, 0.14, 0.22, −0.15] |
+| v4b | 0.815 | 0.269 | 0.909 | [0.36, 0.29, −0.08, −0.21] |
+| v5a, feedforward only | 0.827 | 0.261 | 0.927 | [0.58, 0.28, 0.18, −0.09] |
+| **v5a + exact inference** | **0.853** | **0.255** | **0.951** | **[0.87, 0.68, 0.39, 0.21]** |
+| Posterior with true N and true rates | 0.928 | 0.224 | — | — |
+
+At noise ×2 the same pipeline gives N 0.990, open 0.755 and R²
+[0.74, 0.62, 0.49, 0.00]. Every identifiable rate direction is now positive,
+and the top one (0.87) beats v2a's 0.73 and clears the information-theoretic
+target of 0.85.
+
+Cost: the evidence pass is 25 ms per trace on the GPU, refinement about 4 s per
+group of six traces on the CPU. Both are negligible for offline analysis but
+mean inference is no longer a single forward pass.
+
+## What the architecture search actually found
+
+`code/04_ml/bakeoff.py` caches the expensive tensors once (emission output,
+posterior, log evidence, score vector, expected transition counts) and then
+trains each candidate head on cached tensors in seconds, which made it
+practical to rank 23 designs rather than guess.
+
+**The architecture is not the lever. Training data and optimiser coupling are.**
+
+- Count head, test accuracy with three times the training groups: a plain MLP
+  on the 64-bin amplitude histogram **0.9948**; a 1D CNN ties it but is 60x
+  slower; Deep Sets over raw samples 0.9896; ordinal CORAL 0.9896;
+  multi-resolution histogram pyramid 0.9792; quantile-function input 0.9531;
+  log evidence alone 0.9427. With the original data the same MLP gets 0.9479,
+  so the data is worth five points and the architecture at most one.
+- Rate head: the existing autocorrelation and transition statistics win at
+  [0.732, 0.508]. The score function `dlogZ/dlograte` and the Baum-Welch
+  expected transition counts are the statistically natural sufficient
+  statistics and both **overfit badly** (train R² 0.91, test 0.30). A mixture
+  density output and attention pooling over the group do not help either.
+- Backbones over the open-probability track -- TCN, U-Net and bidirectional GRU
+  -- land within noise of each other on the top rate direction (0.743, 0.634,
+  0.755) and are worse than the hand-written statistics on the second (about
+  0.27 against 0.51), at 10 to 60x the cost. This confirms the earlier
+  measurement that the structured loss terms already sit on the oracle: with
+  pointwise emissions and an exact chain, an encoder has little left to do.
+- A head trained on its own reaches 0.99 while the same head inside the joint
+  model reaches 0.91, and that holds even in the configuration where it shares
+  no parameters with the encoder. The cause is the global gradient clip
+  throttling it against the structured losses; clipping the heads separately is
+  the fix.
+
+Also worth recording: the old finding that evidence-based N selection is
+unreliable came from `kinetics.signal_likelihood`, which treats samples as
+independent. The full HMM log evidence is a different quantity and works.
 
 How many traces per rate table matter (bag ablation, v2a): top-direction R² is
 −0.29 for K = 1, 0.48 for K = 2, 0.68 for K = 4, and 0.73 for K = 6. Rates

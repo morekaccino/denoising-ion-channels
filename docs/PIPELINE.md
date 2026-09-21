@@ -37,6 +37,9 @@ v4 (stages 2e–2g) closes the loop that v2 and v3 left open: both predicted a r
 | 2f — Learned emissions | Per-channel open/closed deviations as Gaussian mixtures, convolved in closed form for k open of N, evaluated pointwise at `y_t` and scaled by a predicted per-trace noise scale | `code/04_ml/torch_emissions.py` (`--verify`), GH-matched fit `code/04_ml/models/emission_gh_fit.pt` |
 | 2g — KI-HMM v4 | One network: N head, per-trace noise-scale head, group-pooled 12-rate head, and the exact chain rebuilt from those rates inside the forward pass. Trained with the CRF identity plus a generative `-logZ` term, so nothing backpropagates through forward–backward. Open-count accuracy 0.815/0.718/0.469 at noise ×1/×2/×4, per-state MAE 0.269, N 0.909 | `code/04_ml/torch_models_v4.py`, `train_kihmm_v4.py`, `eval_kihmm_v4.py`, `figures_kihmm_v4.py`, model `code/04_ml/models/kihmm_v4_v4b.pt`, results `code/04_ml/results/kihmm_v4_eval.json` |
 | — Reference posterior (eval tool) | The v4 layers driven by true N and true rates; reproduces the numpy decoder exactly and gives the 0.928 open / 0.224 MAE reference at noise ×1. Also the device timing benchmark | `code/04_ml/oracle_v4.py`, results `code/04_ml/results/oracle_v4.json` |
+| 2h — Exact inference (v5) | Use the learned likelihood instead of the heads: pick N by log evidence, then refine the 12 rates and the per-trace noise scale by Adam on that same evidence. No retraining needed. Evidence runs on MPS, refinement on CPU | `code/04_ml/infer_v5.py`, results `code/04_ml/results/kihmm_v5_infer.json` |
+| 2i — Architecture bake-off | Caches the expensive tensors once, then ranks 11 count-head and 12 rate-head designs plus three backbones in seconds each. Conclusion: architecture barely matters, training data and optimiser coupling do | `code/04_ml/bakeoff.py`, results `code/04_ml/results/bakeoff_count.json` and `bakeoff_rates.json` |
+| 2j — KI-HMM v5a | v4 retrained with the bake-off lessons: 3x training groups and a separate gradient clip and learning rate for the trace-level heads. With the v5 inference on top, test ×1 reaches N 0.951, open-count accuracy 0.853, per-state MAE 0.255, rate direction R² [0.874, 0.682, 0.390, 0.213] | `train_kihmm_v4.py --train-splits train,train_extra --n-head level --rate-stats`, model `code/04_ml/models/kihmm_v4_v5a.pt`, results `code/04_ml/results/kihmm_v5_eval.json` |
 | 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
 | — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (done), results `code/04_ml/results/baselines_synth_v1.json` |
 | 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
@@ -55,6 +58,23 @@ python code/04_ml/train_kihmm_v4.py --epochs 80 --batch-groups 16 \
        --tag v4b --device cpu --init-emission --rate-stats --n-head pooled
 python code/04_ml/eval_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
 python code/04_ml/figures_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
+```
+
+Reproducing the v5 track (about 1 h of training plus 25 min of inference):
+
+```bash
+python code/04_ml/benchmark_v2.py --extra-train 1024        # 3x training groups, ~4 s
+python code/04_ml/train_kihmm_v4.py --epochs 30 --batch-groups 16 --tag v5a \
+       --device cpu --init-emission --rate-stats --n-head level --w-n 1.0 \
+       --train-splits train,train_extra
+python code/04_ml/infer_v5.py --model code/04_ml/models/kihmm_v4_v5a.pt
+python code/04_ml/eval_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v5a.pt --tag kihmm_v5_eval
+python code/04_ml/figures_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v5a.pt --prefix kihmm_v5
+
+# architecture bake-off (cache once, then seconds per candidate)
+python code/04_ml/bakeoff.py --build-cache --extra
+python code/04_ml/bakeoff.py --task count --extra
+python code/04_ml/bakeoff.py --task rates --extra
 ```
 
 ## Saved models
