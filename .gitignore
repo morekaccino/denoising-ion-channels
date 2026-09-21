@@ -13,3 +13,11 @@ venv/
 
 # Generated artifacts (keep saved models and data tracked intentionally)
 results.txt
+
+# Pure caches that rebuild in seconds:
+#   python code/04_ml/chain_index.py --build
+#   python code/04_ml/benchmark_v2.py --extra-train 1024
+# train_extra.npz is an optional extra training split; it did not help v4
+# (see docs/STATUS.md), so it is not part of the frozen benchmark.
+data/derived/chain_index/
+data/derived/synth_v2/train_extra.npz

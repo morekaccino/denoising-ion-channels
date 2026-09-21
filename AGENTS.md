@@ -52,6 +52,9 @@ pip install -r requirements.txt
 # Python <= 3.13 (e.g. `uv venv --python 3.13 .venv`).
 pip install -r requirements-ml.txt
 
+# Novel-method track (KI-HMM v2/v3/v4) needs torch:
+uv venv --python 3.13 .venv && uv pip install -r requirements-ml-torch.txt
+
 # Work with notebooks
 jupyter notebook
 
@@ -62,7 +65,8 @@ python scripts/verify_repo.py
 ## Key facts
 
 - Real data: WT-CFTR recordings ± 50 µM glibenclamide (details in `docs/DATA.md`).
-- The winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
+- The thesis's winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
+- The best model on the novel-method track is **KI-HMM v4** (`code/04_ml/torch_models_v4.py`, `models/kihmm_v4_v4b.pt`): one network for N, the per-state counts a..g and the 12 Markov rates, which rebuilds the kinetic chain from its own predicted rates inside the forward pass. Trains in ~70 min on an Apple M4 Pro CPU. Each layer has a `--verify` mode that checks it against the numpy reference in `kinetics.py`.
 - `tensorflow` is required only for `code/04_ml/` (via `requirements-ml.txt`); classical notebooks need only the core requirements.
 - The combined model is a subclassed `CustomModel`; to load it, the class must be defined/registered first (run its definition cell in `code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`, or define the same class in your script).
 - Some thesis hyperparameters (ML sweeps, GH noise parameters, DBSCAN epsilon heuristics) do not match the committed notebooks — see `docs/STATUS.md` before claiming full reproducibility.

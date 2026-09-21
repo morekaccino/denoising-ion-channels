@@ -21,6 +21,8 @@ Goal: a method that has never been applied to multi-channel CFTR counting — **
 
 v2 (stages 1b/2b) keeps the exact chain and adds a rate-randomized benchmark plus heads for the per-state counts a..g (sum = N) and the 12 Markov parameters; the rate table is what varies across groups, so estimating it is a real task. Fisher information shows only ~4 of the 12 rate directions are identifiable from summed traces; the loss weights those directions and results are reported per direction (test ×1: R² 0.73/0.48/0.17; effective opening/closing rate R² 0.57/0.73, p_open 0.79).
 
+v4 (stages 2e–2g) closes the loop that v2 and v3 left open: both predicted a rate table but still smoothed with the chain of the *base* rates, so the temporal prior was wrong for nearly every group. v4 rebuilds the chain from its own predicted rates inside the forward pass and learns the emission density instead of importing the scipy generalized-hyperbolic one. Everything is a differentiable layer trained by gradient descent — no EM, no clustering, no separate decoding stage.
+
 | Stage | What it does | Code |
 |---|---|---|
 | 0 — Benchmark | Seeded frozen dataset + metrics (per-N, transition-window, calibration, N) | `code/04_ml/benchmark.py`, `data/derived/synth_v1/` |
@@ -29,8 +31,12 @@ v2 (stages 1b/2b) keeps the exact chain and adds a rate-randomized benchmark plu
 | 1b — Rate benchmark | Rate-randomized groups with full 7-state labels for N, per-state count and Markov-parameter targets | `code/04_ml/benchmark_v2.py`, `data/derived/synth_v2/` |
 | 2b — KI-HMM v2 | Encoder + group mixer + dwell-rate branch → N head, per-state count head (a..g, sum = N), 12-rate head trained with a Fisher-weighted loss; per-direction R² and effective-rate evaluation | `code/04_ml/torch_models_v2.py`, `train_kihmm_v2.py`, `eval_kihmm_v2.py`, model `code/04_ml/models/kihmm_v2_v2a.pt`, results `code/04_ml/results/kihmm_v2_eval.json` |
 | 2c — Augmented retrain | Domain-randomized augmentation (wander, trend, AR(1) noise, filtering) + retrain; keeps clean-synthetic quality, real-data rates still out of distribution | `code/04_ml/benchmark_v2.py --augment`, model `code/04_ml/models/kihmm_v2_v2b.pt`, results `code/04_ml/results/kihmm_v2_eval_v2b.json` |
-| 2d — KI-HMM v3 | Neural HMM head: emissions + exact forward–backward over the open-count chain (base kinetic chain + gated corrections), auxiliary emission loss; best NN open-count accuracy so far (+5 points at all noise levels) | `code/04_ml/torch_models_v3.py`, `train_kihmm_v3.py`, model `code/04_ml/models/kihmm_v3_v3a.pt`, results `code/04_ml/results/kihmm_v3_v3a.json` |
-| — Hybrid refine (eval tool) | Predicted N + rates → exact chain forward–backward → posterior counts; open accuracy 0.89 on test ×1 | `code/04_ml/refine_kihmm_v2.py`, results `code/04_ml/results/kihmm_v2_refined.json` |
+| 2d — KI-HMM v3 | Neural HMM head: emissions + exact forward–backward over the open-count chain (base kinetic chain + gated corrections), auxiliary emission loss; +5 points of open-count accuracy over v2 at all noise levels | `code/04_ml/torch_models_v3.py`, `train_kihmm_v3.py`, model `code/04_ml/models/kihmm_v3_v3a.pt`, results `code/04_ml/results/kihmm_v3_v3a.json` |
+| — Hybrid refine (eval tool) | Predicted N + rates → exact chain forward–backward → posterior counts; open accuracy 0.89 on test ×1. This gain is what v4 moves inside the network | `code/04_ml/refine_kihmm_v2.py`, results `code/04_ml/results/kihmm_v2_refined.json` |
+| 2e — Differentiable kinetics | Term tables that make the exact occupancy-count chain a gather/product/scatter over `P0`, then `matrix_exp` generator, stationary solve, chain assembly and forward–backward as torch ops with analytic gradients | `code/04_ml/chain_index.py`, `code/04_ml/torch_kinetics.py` (both have `--verify`), cached tables in `data/derived/chain_index/` |
+| 2f — Learned emissions | Per-channel open/closed deviations as Gaussian mixtures, convolved in closed form for k open of N, evaluated pointwise at `y_t` and scaled by a predicted per-trace noise scale | `code/04_ml/torch_emissions.py` (`--verify`), GH-matched fit `code/04_ml/models/emission_gh_fit.pt` |
+| 2g — KI-HMM v4 | One network: N head, per-trace noise-scale head, group-pooled 12-rate head, and the exact chain rebuilt from those rates inside the forward pass. Trained with the CRF identity plus a generative `-logZ` term, so nothing backpropagates through forward–backward. Open-count accuracy 0.815/0.718/0.469 at noise ×1/×2/×4, per-state MAE 0.269, N 0.909 | `code/04_ml/torch_models_v4.py`, `train_kihmm_v4.py`, `eval_kihmm_v4.py`, `figures_kihmm_v4.py`, model `code/04_ml/models/kihmm_v4_v4b.pt`, results `code/04_ml/results/kihmm_v4_eval.json` |
+| — Reference posterior (eval tool) | The v4 layers driven by true N and true rates; reproduces the numpy decoder exactly and gives the 0.928 open / 0.224 MAE reference at noise ×1. Also the device timing benchmark | `code/04_ml/oracle_v4.py`, results `code/04_ml/results/oracle_v4.json` |
 | 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
 | — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (done), results `code/04_ml/results/baselines_synth_v1.json` |
 | 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
@@ -38,7 +44,18 @@ v2 (stages 1b/2b) keeps the exact chain and adds a rate-randomized benchmark plu
 
 Plain-language explainer of the KI-HMM method (EPUB + Markdown): `docs/explainer/`.
 
-Environment for stages 2–4: `requirements-ml-torch.txt` (torch with CUDA; TF/Keras stack untouched). TensorFlow and PyTorch both see the GTX 1660 SUPER (6 GB) after `uv pip install "tensorflow[and-cuda]" torch`.
+Environment for stages 2–4: `requirements-ml-torch.txt` (TF/Keras stack untouched). On the original Linux box TensorFlow and PyTorch both see the GTX 1660 SUPER (6 GB) after `uv pip install "tensorflow[and-cuda]" torch`. On Apple silicon `uv venv --python 3.13 .venv && uv pip install -r requirements-ml-torch.txt` gives an MPS-capable build; the v4 stages were developed and trained on an M4 Pro. `oracle_v4.py --timing` measures both devices — MPS wins for N=5 (11.5 ms vs 18.0 ms per 1000-sample trace) and CPU wins for N=1 (0.4 ms vs 1.6 ms), and for the mixed-N training loop plain CPU came out slightly ahead, so `train_kihmm_v4.py --device cpu` is the default used for the published runs.
+
+Reproducing the v4 track (about 70 minutes end to end on an M4 Pro):
+
+```bash
+python code/04_ml/chain_index.py --build          # term tables, ~2 s, cached
+python code/04_ml/oracle_v4.py --emission-fit     # emission fit + reference posterior
+python code/04_ml/train_kihmm_v4.py --epochs 80 --batch-groups 16 \
+       --tag v4b --device cpu --init-emission --rate-stats --n-head pooled
+python code/04_ml/eval_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
+python code/04_ml/figures_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
+```
 
 ## Saved models
 

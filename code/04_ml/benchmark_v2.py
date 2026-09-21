@@ -261,6 +261,20 @@ def generate_all(dest: pathlib.Path = DEST, mini: bool = False, seed_shift: int 
     B.save_npz(dest / "mismatch_drift.npz", mm_drift, _meta("mismatch_drift", seeds["mismatch"], rate_drift_mult=3.0))
 
 
+def generate_extra_train(dest: pathlib.Path = DEST, n_groups: int = 1024,
+                         traces_per_group: int = 6, seed: int = 9111) -> None:
+    """Additional training groups only; val/test/extrap/mismatch stay frozen.
+
+    The channel-count head overfits on 512 groups (train 0.98 vs test 0.88), and
+    more simulated groups are the cheapest fix available.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    data = generate_grouped_split(seed, n_groups, traces_per_group, n_samples=1000,
+                                  scales=(), noise_scale_range=(1.0, 4.0))
+    B.save_npz(dest / "train_extra.npz", data,
+               _meta("train_extra", seed, groups=n_groups, traces_per_group=traces_per_group))
+
+
 def augment_trace(x: np.ndarray, rng: np.random.Generator) -> np.ndarray:
     """Add real-world mess to one trace: wander, trend, colored noise, filtering.
 
@@ -347,6 +361,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generate", action="store_true")
     parser.add_argument("--augment", action="store_true")
+    parser.add_argument("--extra-train", type=int, default=0,
+                        help="generate this many additional training groups (train_extra.npz)")
     parser.add_argument("--mini", action="store_true")
     parser.add_argument("--info", action="store_true")
     args = parser.parse_args()
@@ -354,7 +370,9 @@ def main() -> None:
         generate_all(mini=args.mini)
     if args.augment:
         generate_augmented(mini=args.mini)
-    if args.info or not (args.generate or args.augment):
+    if args.extra_train:
+        generate_extra_train(n_groups=args.extra_train)
+    if args.info or not (args.generate or args.augment or args.extra_train):
         _info()
 
 

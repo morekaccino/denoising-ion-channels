@@ -28,12 +28,15 @@ trace. The closest works, and what separates them:
 | FHMM model selection ([1506.07959](https://arxiv.org/abs/1506.07959)) and scalable fHMM filtering ([2607.07008](https://arxiv.org/abs/2607.07008)) | Bayesian/classical factorial HMM learning | No neural emissions, no biophysical structure, no summed-current application |
 | VAMPnets / deep Markov state models ([1710.06012](https://arxiv.org/abs/1710.06012)) | Learn coarse-grained Markov models from trajectories | Full state observability; not emission-based counting |
 
-Three contributions:
+Four contributions:
 
 1. **A joint deep model.** One TCN encoder feeds three heads: N, per-state
    counts a..g, and 12 transition rates. The rate head works on a *group* of
    traces recorded under the same kinetics, which is how rates become
-   estimable.
+   estimable. In v4 the model also decodes with the rate table it predicts: the
+   generator is exponentiated and expanded into the exact occupancy-count chain
+   inside the forward pass, and the per-channel emission density is learned
+   rather than imported from the simulator.
 2. **A rate-randomized benchmark.** `synth_v2` gives every group its own random
    rate table (×0.5–×2 around the literature table), so rate estimation is a
    real task instead of predicting a constant.
@@ -43,6 +46,13 @@ Three contributions:
    almost no information. This is a limit of the measurement, not of the model,
    and it tells practitioners which kinetic numbers can even be estimated from
    multi-channel data.
+4. **Exact factorial-HMM inference as a trainable layer.** The occupancy-count
+   transition matrix is a polynomial in the single-channel kernel, so it can be
+   rebuilt from predicted rates with a gather, a product and a scatter-add, and
+   the forward-backward recursion supplies its own analytic gradients. Together
+   with a closed-form convolved mixture emission this makes Bayes-optimal
+   structured inference a differentiable module rather than a post-processing
+   step, on hardware as modest as a laptop CPU.
 
 ## The model
 
@@ -90,6 +100,77 @@ at noise ×1/×2/×4 (v2: 0.605 / 0.537 / 0.393) and state error drops to 0.307
 channels at ×1. N accuracy is 0.922 at ×1. Exact structured decoding with the
 model's own predicted N and rates still reaches 0.89 open accuracy
 (`refine_kihmm_v2.py`), so the remaining gap is the learned emission model.
+
+## KI-HMM v4: decoding with the rates the model predicts
+
+v2 and v3 share a flaw. Both output a rate table, and both then smooth with the
+count chain of the **base** rate table, while `synth_v2` randomises every rate
+by ×0.5–2 per group. The temporal prior was wrong for nearly every group. That
+is why the offline refinement in `refine_kihmm_v2.py` gains 0.63 → 0.888 purely
+by feeding the model's *own* predicted N and rates into the real chain.
+
+v4 (`code/04_ml/torch_models_v4.py`) puts that computation inside the network:
+
+- **Kinetics layer.** The 12 predicted rates become a 7×7 generator and then
+  `torch.linalg.matrix_exp(dt·R)`; the single-channel stationary distribution
+  comes from a linear solve. Both differentiable.
+- **Exact occupancy-count chain, differentiably.** Every entry of the
+  C(N+6,6)-state transition matrix is a polynomial in the 49 entries of `P0`
+  with exactly N factors, so enumerating the multisets of N cells out of 49
+  enumerates every term once. `chain_index.py` caches those term tables (49 to
+  2,869,685 terms for N=1 to 5) and `CountTransition` rebuilds the matrix with a
+  gather, a product and a scatter-add, recomputing terms in the backward pass so
+  the forward stores nothing but `P0`.
+- **Learned emission density.** Each channel's deviation is a small 1-D Gaussian
+  mixture; sums of independent mixtures convolve in closed form, so the k-open
+  density is exact given the learned per-channel shapes — no FFT, no grid. It is
+  evaluated pointwise at `y_t`, never on a temporal window, which keeps the HMM
+  from counting the same evidence twice and makes its log evidence a real
+  likelihood. Four components match the exact generalized-hyperbolic densities
+  to 0.043 nats over the density bulk for every N and k.
+- **Supervision without backpropagating through forward–backward.**
+  `HMMLogZ` returns the posterior detached and supplies analytic gradients
+  (`d logZ/d log b_t = gamma_t`, `d logZ/d log P = sum xi_t`). Training uses the
+  CRF identity `log p(states | y) = path_score − logZ`, where `path_score` is an
+  explicit gather over the true occupancy trajectory, plus a generative `−logZ`
+  term that holds the emission density and the rates to the data.
+
+Every piece is a differentiable layer trained by gradient descent. Inference is
+one forward pass: no EM, no clustering, no separate decoding stage.
+
+Frozen test, same 64 groups × 6 traces as above:
+
+| Model | open-count acc ×1/×2/×4 | per-state MAE ×1 | N acc ×1 |
+|---|---|---|---|
+| v2a (per-timestep count head) | 0.605 / 0.537 / 0.393 | 0.318 | 0.948 |
+| v3a (neural HMM head, base chain) | 0.657 / 0.592 / 0.472 | 0.308 | 0.922 |
+| **v4b (chain from predicted rates)** | **0.815 / 0.718 / 0.469** | **0.269** | 0.909 |
+| Posterior with true N and true rates | 0.928 / 0.695 / 0.451 | 0.224 | — |
+
+The last row is the exact posterior under the generative model, computed with
+the same v4 layers (`oracle_v4.py`) and verified to reproduce the numpy decoder
+to 9e-5 per count. It is a reference, not a hard bound: the metric rounds the
+posterior *mean*, which is not the optimal rule for 0-1 loss, which is why v4
+edges past it at ×2 and ×4 where the posterior is broad.
+
+Where the remaining ×1 gap sits: forcing the true N raises v4b from 0.815 to
+0.885, so roughly two thirds of what is left is the channel-count head, and it
+fails almost entirely on N=4 versus N=5 (25 of its 35 test errors).
+
+Two honest negatives from this round:
+
+1. **Rate recovery regressed.** Identifiable-direction R² on test ×1 is
+   0.36 / 0.29 for v4b against 0.73 / 0.48 for v2a. v2's rate head read a
+   supervised, temporally smooth per-timestep state posterior; v4's reads a
+   pointwise emission-derived open probability, because the smoothed posterior
+   is only available after the rates and comes back detached. Raising the rate
+   weight and doubling the training crop made it worse. The untried fix is a
+   two-pass rate head: decode once with the base chain, then feed that posterior
+   to the rate head.
+2. **Colored noise breaks it.** On the AR(1) mismatch split open accuracy falls
+   to 0.33, because the learned emission assumes independent samples. The other
+   mismatch splits are fine or better than the base case (drift 0.917,
+   Gaussian noise 0.884, lowpass 0.758).
 
 How many traces per rate table matter (bag ablation, v2a): top-direction R² is
 −0.29 for K = 1, 0.48 for K = 2, 0.68 for K = 4, and 0.73 for K = 6. Rates
@@ -155,6 +236,21 @@ python code/04_ml/eval_kihmm_v2.py --model code/04_ml/models/kihmm_v2_v2a.pt
 # real recordings
 python code/04_ml/apply_kihmm_v2_real.py --model code/04_ml/models/kihmm_v2_v2a.pt
 ```
+
+v4 (about 70 minutes end to end on an Apple M4 Pro, CPU):
+
+```bash
+python code/04_ml/chain_index.py --build          # term tables, ~2 s, cached
+python code/04_ml/oracle_v4.py --emission-fit     # emission fit + reference posterior
+python code/04_ml/train_kihmm_v4.py --epochs 80 --batch-groups 16 \
+       --tag v4b --device cpu --init-emission --rate-stats --n-head pooled
+python code/04_ml/eval_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
+python code/04_ml/figures_kihmm_v4.py --model code/04_ml/models/kihmm_v4_v4b.pt
+```
+
+Each v4 layer verifies against the numpy reference on its own:
+`chain_index.py --verify`, `torch_kinetics.py --verify` (includes `gradcheck`),
+`torch_emissions.py --verify`.
 
 Artifacts: `data/derived/synth_v2/`, `code/04_ml/results/kihmm_v2_eval.json`,
 `code/04_ml/results/kihmm_v2_real.json`, `code/04_ml/results/fisher_synth_v2.json`,
