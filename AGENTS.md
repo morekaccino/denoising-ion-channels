@@ -27,7 +27,7 @@ The docs are this repo's memory — future agents and the human rely on them to 
 - `code/03_classical/` — DBSCAN and DBSCAN+BGMM analyses
 - `code/04_ml/` — CCNN + LSTM notebooks; `code/04_ml/models/` holds saved `.keras` models
 - `data/raw/` — 53 raw `.abf` recordings (read-only); `data/references/` — background papers
-- `docs/` — `DATA.md` (provenance), `PIPELINE.md` (thesis-section → code map), `STATUS.md` (status log)
+- `docs/` — `DATA.md` (provenance), `PIPELINE.md` (thesis-section → code map), `STATUS.md` (status log), `NOVELTY.md` (v2 novelty + results)
 - `scripts/verify_repo.py` — repo health smoke test (notebook validity, path resolution, counts)
 
 ## Conventions
@@ -52,6 +52,9 @@ pip install -r requirements.txt
 # Python <= 3.13 (e.g. `uv venv --python 3.13 .venv`).
 pip install -r requirements-ml.txt
 
+# Novel-method track (KI-HMM v2/v3/v4) needs torch:
+uv venv --python 3.13 .venv && uv pip install -r requirements-ml-torch.txt
+
 # Work with notebooks
 jupyter notebook
 
@@ -62,7 +65,9 @@ python scripts/verify_repo.py
 ## Key facts
 
 - Real data: WT-CFTR recordings ± 50 µM glibenclamide (details in `docs/DATA.md`).
-- The winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
+- The thesis's winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
+- The best model on the novel-method track is **KI-HMM v5a** (`code/04_ml/torch_models_v4.py`, `models/kihmm_v4_v5a.pt`) run through `code/04_ml/infer_v5.py`: one network for N, the per-state counts a..g and the 12 Markov rates, which rebuilds the kinetic chain from its own predicted rates inside the forward pass. At inference the same learned likelihood picks N by model evidence and refines the rates by gradient ascent. Trains in ~55 min on an Apple M4 Pro CPU. Each layer has a `--verify` mode that checks it against the numpy reference in `kinetics.py`.
+- Before proposing a new architecture, read the bake-off results (`results/bakeoff_count.json`, `results/bakeoff_rates.json`). 23 head and backbone designs were compared and the conclusion was that architecture barely matters here; training data volume and optimiser coupling do.
 - `tensorflow` is required only for `code/04_ml/` (via `requirements-ml.txt`); classical notebooks need only the core requirements.
 - The combined model is a subclassed `CustomModel`; to load it, the class must be defined/registered first (run its definition cell in `code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`, or define the same class in your script).
 - Some thesis hyperparameters (ML sweeps, GH noise parameters, DBSCAN epsilon heuristics) do not match the committed notebooks — see `docs/STATUS.md` before claiming full reproducibility.

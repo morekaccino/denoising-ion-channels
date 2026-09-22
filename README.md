@@ -8,6 +8,9 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 - Data provenance and formats: [`docs/DATA.md`](docs/DATA.md)
 - Methodology and how-to-reproduce: [`docs/PIPELINE.md`](docs/PIPELINE.md)
 - Project status log, experiment history, known thesis-vs-code discrepancies: [`docs/STATUS.md`](docs/STATUS.md)
+- Novelty, method, and results of the KI-HMM track (through v5): [`docs/NOVELTY.md`](docs/NOVELTY.md)
+- Full KI-HMM v5 presentation with figures, result tables, architecture, limits, and literature review: [`docs/KI_HMM_V5_PRESENTATION.md`](docs/KI_HMM_V5_PRESENTATION.md)
+- Illustrated plain-language book on the novel KI-HMM method (EPUB for iBooks, 29 figures, Markdown source): [`docs/explainer/KI-HMM_explained.epub`](docs/explainer/KI-HMM_explained.epub)
 
 ## Repository structure
 
@@ -16,6 +19,7 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 ├── Kazemi_Mohammadreza_2024_MASc.pdf   Thesis
 ├── data/
 │   ├── raw/                            Raw patch-clamp recordings (.abf, 53 files)
+│   ├── derived/                        Frozen synthetic benchmarks (synth_v1 + synth_v2)
 │   └── references/                     Papers on glibenclamide block of CFTR
 ├── source/                             Core simulation/data-loading package
 │   ├── ion_channel.py                  7-state CFTR kinetic model
@@ -26,13 +30,27 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │   ├── 01_simulation/                  Synthetic data generation
 │   ├── 02_noise_modeling/              Noise distribution fitting on real data
 │   ├── 03_classical/                   DBSCAN / DBSCAN+BGMM analyses
-│   └── 04_ml/                          CCNN + LSTM notebooks and saved models
+│   └── 04_ml/                          CCNN + LSTM notebooks, saved models,
+│                                       and the novel-method track:
+│                                       benchmark.py + benchmark_v2.py (frozen benchmarks),
+│                                       kinetics.py (exact factorial-HMM decoder),
+│                                       torch_models_v2.py (N + state counts + rates),
+│                                       torch_models_v3.py (neural HMM head),
+│                                       chain_index.py + torch_kinetics.py +
+│                                       torch_emissions.py (differentiable kinetics
+│                                       and learned emission density),
+│                                       torch_models_v4.py (current best model),
+│                                       infer_v5.py (evidence-based N + rate refinement),
+│                                       bakeoff.py (architecture comparison harness),
+│                                       presentation_results.py +
+│                                       figures_presentation_v5.py (final result report)
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation
 ├── AGENTS.md                           Guide for AI coding agents (CLAUDE.md imports it)
 ├── requirements.txt                    Core dependencies
-└── requirements-ml.txt                 Extras for code/04_ml (tensorflow, keras)
+├── requirements-ml.txt                 Extras for code/04_ml (tensorflow, keras)
+└── requirements-ml-torch.txt           Extras for the novel-method track (torch)
 ```
 
 ## Quick start
@@ -48,6 +66,9 @@ pip install -r requirements.txt
 #   uv venv --python 3.13 .venv
 pip install -r requirements-ml.txt
 
+# Novel-method track (KI-HMM) additionally needs torch:
+pip install -r requirements-ml-torch.txt
+
 jupyter notebook
 python scripts/verify_repo.py   # sanity check
 ```
@@ -60,6 +81,7 @@ Every notebook starts with a bootstrap cell that locates the repo root, so noteb
 2. **Model noise** by fitting generalized hyperbolic distributions to real recordings (`code/02_noise_modeling/`)
 3. **Cluster** with DBSCAN and DBSCAN+BGMM (`code/03_classical/`)
 4. **Learn** ion-channel count (CCNN) and point-wise state (LSTM) (`code/04_ml/`)
+5. **Novel track**: KI-HMM, one network that outputs the channel count, the per-state counts and the Markov rates, decodes with the rate table it predicts, and at inference uses its own learned likelihood to select the channel count and refine the rates (`code/04_ml/torch_models_v4.py`, `code/04_ml/infer_v5.py`, see [`docs/NOVELTY.md`](docs/NOVELTY.md))
 
 ## Rights note
 

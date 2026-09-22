@@ -32,7 +32,7 @@ def check(condition, message):
 
 notebooks = sorted(glob.glob("code/**/*.ipynb", recursive=True))
 print(f"Notebooks found: {len(notebooks)}")
-check(len(notebooks) == 11, "expected 11 notebooks")
+check(len(notebooks) >= 12, f"at least 12 notebooks (got {len(notebooks)})")
 
 # Banned relative-path patterns from the pre-curation layout
 BANNED = [
@@ -86,14 +86,25 @@ pdf = sorted(glob.glob("data/references/*.pdf"))
 models = sorted(glob.glob("code/04_ml/models/*.keras"))
 check(len(abf) == 53, f"53 .abf recordings (got {len(abf)})")
 check(len(pdf) == 3, f"3 reference PDFs (got {len(pdf)})")
-check(len(models) == 3, f"3 .keras models (got {len(models)})")
+check(len(models) >= 3, f"at least the 3 thesis .keras models (got {len(models)})")
 check(all(" " not in p for p in pdf), "reference PDF filenames have no spaces")
 
 print("Core files:")
 for f in ["source/ion_channel.py", "source/patch_clamp.py", "source/moreka.py",
           "source/sim.py", "source/__init__.py", "requirements.txt",
-          "requirements-ml.txt", "README.md", "AGENTS.md", "CLAUDE.md",
-          "docs/STATUS.md", "docs/PIPELINE.md", "docs/DATA.md",
+          "requirements-ml.txt", "requirements-ml-torch.txt", "README.md", "AGENTS.md", "CLAUDE.md",
+          "code/04_ml/benchmark.py", "code/04_ml/benchmark_v2.py", "code/04_ml/kinetics.py",
+          "code/04_ml/torch_models_v2.py", "code/04_ml/train_kihmm_v2.py", "code/04_ml/eval_kihmm_v2.py",
+          "code/04_ml/torch_models_v3.py", "code/04_ml/train_kihmm_v3.py", "code/04_ml/refine_kihmm_v2.py",
+          "code/04_ml/apply_kihmm_v2_real.py", "code/04_ml/figures_kihmm_v2.py",
+          "code/04_ml/chain_index.py", "code/04_ml/torch_kinetics.py", "code/04_ml/torch_emissions.py",
+          "code/04_ml/torch_models_v4.py", "code/04_ml/train_kihmm_v4.py", "code/04_ml/eval_kihmm_v4.py",
+          "code/04_ml/figures_kihmm_v4.py", "code/04_ml/oracle_v4.py",
+          "code/04_ml/infer_v5.py", "code/04_ml/bakeoff.py",
+          "code/04_ml/presentation_results.py", "code/04_ml/figures_presentation_v5.py",
+          "code/04_ml/presentation_real_v5.py",
+          "docs/STATUS.md", "docs/PIPELINE.md", "docs/DATA.md", "docs/NOVELTY.md",
+          "docs/KI_HMM_V5_PRESENTATION.md",
           "Kazemi_Mohammadreza_2024_MASc.pdf", "scripts/verify_repo.py"]:
     check((ROOT / f).exists(), f"exists: {f}")
 
