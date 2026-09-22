@@ -104,6 +104,7 @@ for f in ["source/ion_channel.py", "source/patch_clamp.py", "source/moreka.py",
           "code/04_ml/presentation_results.py", "code/04_ml/figures_presentation_v5.py",
           "code/04_ml/presentation_real_v5.py",
           "docs/STATUS.md", "docs/PIPELINE.md", "docs/DATA.md", "docs/NOVELTY.md",
+          "docs/KI_HMM_V5_PRESENTATION.md",
           "Kazemi_Mohammadreza_2024_MASc.pdf", "scripts/verify_repo.py"]:
     check((ROOT / f).exists(), f"exists: {f}")
 
