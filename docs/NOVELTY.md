@@ -329,6 +329,17 @@ this data (nearest-level classification with known N reaches 0.74; a plain MLP
 0.56; Deep-Channel 0.53), so its score reflects the pointwise idealization
 task, not a weak training recipe (a 16-epoch schedule changes nothing).
 
+Round 2 added IDC (Requadt et al. 2025) and the Moffett et al. 2022
+single-channel CFTR factor-graph EM on the same frozen test set (branch
+`baselines-round2`). IDC scores x1 N 0.320 / open 0.442 and, as documented in
+its own paper, undercounts levels when a trace never visits all channels
+closed; its Cauchy-noise robustness claim was reproduced in verification.
+Moffett is single-channel, so it was run on the 69 N=1 traces: its open
+accuracy is 0.987/0.893/0.520 at noise x1/x2/x4 against v5's 0.991/0.951/0.830
+on the same traces, i.e. the specialist ties v5 at the reference noise level
+and degrades faster, while only v5 scales to N>1 and outputs N, seven-state
+occupancy and rates.
+
 ## Limitations
 
 1. Rates are only partly identifiable from summed traces; report the

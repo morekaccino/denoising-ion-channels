@@ -19,6 +19,7 @@ import sys
 import time
 
 import numpy as np
+import torch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "code" / "04_ml"))
@@ -39,6 +40,10 @@ STATE_NAMES = ["C1a", "C1b", "C2", "O1", "O2", "C3", "C4"]
 STATE_LETTERS = list("abcdefg")
 
 
+DEVICE = ("cuda" if torch.cuda.is_available()
+          else "mps" if torch.backends.mps.is_available() else "cpu")
+
+
 def head_predictions(model: V4.KIHMMv4, data: dict):
     n_hat, rates, log_scale = [], [], []
     for gids in group_batches(len(data["R"]), 8, np.random.default_rng(0), shuffle=False):
@@ -56,9 +61,9 @@ def run_inference() -> dict[str, np.ndarray]:
     _, rates_head, log_scale_head = head_predictions(model, data)
     group = data["group"]
 
-    model.emission.to("mps")
+    model.emission.to(DEVICE)
     evidence_1 = I5.evidence_n(
-        data["X"], rates_head[group], log_scale_head, model.emission, "mps"
+        data["X"], rates_head[group], log_scale_head, model.emission, DEVICE
     )
     n_evidence = evidence_1.argmax(axis=1) + 1
 
@@ -121,9 +126,9 @@ def refresh_n_from_head(data: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     test = load("test", "1")
     model = load_model(str(MODEL), "cpu")
     _, rates_head, log_scale_head = head_predictions(model, test)
-    model.emission.to("mps")
+    model.emission.to(DEVICE)
     evidence = I5.evidence_n(
-        test["X"], rates_head[test["group"]], log_scale_head, model.emission, "mps"
+        test["X"], rates_head[test["group"]], log_scale_head, model.emission, DEVICE
     )
     n_pred = evidence.argmax(axis=1) + 1
     model.emission.to("cpu")

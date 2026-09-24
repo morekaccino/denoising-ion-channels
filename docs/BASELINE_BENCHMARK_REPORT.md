@@ -20,7 +20,9 @@ test set as KI-HMM v5a:
 v5a wins every metric on every split. It is also the only method that outputs
 per-state counts and kinetic rates, and the only one that keeps working at
 N = 4–5 (baselines drop to 0.00–0.27 channel-count accuracy there; v5a stays
-at 0.86–0.93).
+at 0.86–0.93). Round 2 adds IDC (Requadt et al. 2025) and the single-channel
+CFTR factor-graph EM (Moffett et al. 2022); the latter matches v5 on the N=1
+subset at the reference noise level and loses from x2 on (Section 12).
 
 ## 1. Question and evaluation protocol
 
@@ -244,6 +246,8 @@ weak training recipe, and the comparison is fair to the published method.
 | SD-HMM | yes (BIC) | yes (Viterbi) | no | effective birth-death only | no | no |
 | VND-HMM | yes (BIC) | yes (Viterbi) | no | transition probabilities only | no | no |
 | Deep-Channel | max-openings heuristic | yes (per sample) | no | no | yes (RCNN) | no |
+| IDC | yes (level count) | yes (discretised levels) | no | VND min-distance probs | no | no |
+| Moffett 2022 | no (single channel) | N=1 only | yes (single channel) | yes (per-trace EM) | no | yes |
 
 This is the structural half of the novelty argument: even before accuracy, no
 prior method produces the joint (N, 7-state occupancy counts, rates) output
@@ -296,10 +300,85 @@ grows with channel count and noise.*
 Not supported: calling the prior methods "wrong" in general — they target
 different models (binary channels, large ensembles, pointwise idealization).
 
-## 12. Files and reproduction
+## 12. Round 2 (2026-09): IDC, Moffett et al. 2022
+
+Two more prior methods were reconstructed on branch `baselines-round2`
+(stacked on the round-1 branch). Provenance and all deviations are in
+`code/05_baselines/BASELINES.md`.
+
+### IDC (Requadt et al. 2025, IEEE TNB / arXiv:2403.13197)
+
+The published pipeline is idealisation (MUSCLE) -> discretisation -> VND
+minimum-distance cooperativity inference. Steps 2 and 3 were ported exactly
+from the authors' `R/IDC.r` (equidistant-centre constrained k-means objective,
+empirical transition frequencies with the `n/(n-1)` correction, the
+minimum-distance loss and its box constraints). MUSCLE is R/C++ only and has
+no Python build, so step 1 is a documented substitute: a rank-based multiscale
+segmenter with median merging. On the paper's own noise scenarios the
+substitute reproduces their central robustness claim - under Cauchy noise IDC
+beats the VND-HMM estimator (mean parameter error 0.160 vs 0.363), while
+under Gaussian noise classical fitting wins (0.354 vs 0.004; the even-L
+identifiability ambiguity discussed in their own paper contributes to the
+large IDC error).
+
+Frozen `synth_v2` test set (N accuracy / open accuracy / open MAE):
+
+| Method | noise x1 | noise x2 | noise x4 |
+|---|---|---|---|
+| **KI-HMM v5a** | **0.951 / 0.853 / 0.183** | **0.987 / 0.753 / 0.320** | **1.000 / 0.508 / 0.618** |
+| IDC | 0.320 / 0.442 / 0.869 | 0.164 / 0.325 / 1.183 | 0.003 / 0.213 / 1.529 |
+
+IDC's scores are dominated by an inherited limitation rather than a porting
+issue: it assigns each conductance level the open-count index of the observed
+levels, so traces that never visit the all-closed level are shifted downward
+and N is the number of observed levels minus one. This is the documented
+L underestimation of the method, and it is why the count metrics fall below
+the two-state HMM baselines. At N = 1, where most traces visit both levels,
+IDC is competitive on its own terms (N accuracy 0.739, open accuracy 0.758).
+
+### Moffett et al. 2022 (Biophysical Reports)
+
+The CFTR factor-graph EM is single-channel, so it was run on the 69 N=1 test
+traces only, on exactly the same traces as the v5 reference run
+(`v5_reference.py`). The port is vectorized but preserves the reference
+message semantics and M-step equations, and `--verify` reproduces their
+node-based implementation (state path, transition matrix, amplitudes, noise
+variance to 1e-8).
+
+N=1 subset comparison:
+
+| Split | Metric | KI-HMM v5a | Moffett 2022 |
+|---|---|---|---|
+| test_x1 | open accuracy | 0.9912 | 0.9874 |
+| test_x1 | open MAE | 0.0140 | **0.0126** |
+| test_x1 | per-sample 7-state accuracy | 0.939 (rounded counts) | 0.698 |
+| test_x2 | open accuracy | **0.9511** | 0.8926 |
+| test_x2 | open MAE | **0.0725** | 0.1074 |
+| test_x4 | open accuracy | **0.8303** | 0.5203 |
+| test_x4 | open MAE | **0.2191** | 0.4797 |
+
+At the reference noise level the single-channel CFTR specialist matches v5 on
+the one subset it can address (open MAE 0.0126 vs 0.0140, accuracy 0.9874 vs
+0.9912), which is a fair and useful result for the paper: v5 equals the
+domain-specific method where that method applies, and it is the only one that
+scales to multiple channels, infers N, resolves the seven states and reports
+rates. As noise grows, Moffett's per-trace EM collapses (at x4 the fitted
+closed and open amplitudes coincide), while v5's N=1 subset accuracy remains
+0.83.
+
+### Albertsen & Hansen 1994
+
+Planned as the original summed-trace likelihood method (N from the likelihood,
+rates by Kronecker-sum direct fit). The full text is not reachable from this
+environment (PMC serves it through a reCAPTCHA challenge), so the
+reconstruction is deferred until the PDF is available locally; the abstract
+and the standard direct-likelihood construction are already documented.
+
+## 13. Files and reproduction
 
 - Ports: `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`,
-  `deepchannel_port.py`, `deepchannel_seq.py`, `compare_baselines.py`
+  `deepchannel_port.py`, `deepchannel_seq.py`, `idc_port.py`, `moffett_port.py`,
+  `v5_reference.py`, `compare_baselines.py`
 - Provenance and deviations: `code/05_baselines/BASELINES.md`; plan and
   checkpoints: `code/05_baselines/PLAN.md`
 - Results: `code/05_baselines/results/baseline_comparison.{md,json}` plus the
@@ -314,5 +393,10 @@ python code/05_baselines/sdmc_port.py --split test_x1 --jobs 10   # test_x2, tes
 python code/05_baselines/vnd_port.py  --split test_x1 --jobs 10
 python code/05_baselines/deepchannel_port.py --train --epochs 6 --batch 1024
 python code/05_baselines/deepchannel_port.py --eval --splits test_x1,test_x2,test_x4
+python code/05_baselines/idc_port.py --verify
+python code/05_baselines/moffett_port.py --verify
+python code/05_baselines/idc_port.py --split test_x1 --jobs 10
+python code/05_baselines/moffett_port.py --split test_x1 --jobs 10
+python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4  # per-trace v5 preds
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
 ```

@@ -30,3 +30,9 @@ data/derived/presentation_v5.npz
 # Provenance (repo URL, license, commit hash) is recorded in
 # code/05_baselines/BASELINES.md.
 .external/
+
+# Per-trace KI-HMM v5 predictions for baseline subset comparisons. Rebuilt by
+#   python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4
+# (~25 min per split; compare_baselines.py falls back to the published metrics
+# when the cache is absent).
+code/05_baselines/results/v5_*_predictions.npz

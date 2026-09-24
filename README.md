@@ -46,9 +46,10 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │                                       presentation_results.py +
 │                                       figures_presentation_v5.py (final result report)
 │   └── 05_baselines/                   Head-to-head benchmark vs prior methods on synth_v2:
-│                                       Python ports of SD-HMM (2026), VND-HMM (2024) and
-│                                       Deep-Channel (2020), provenance and deviations in
-│                                       BASELINES.md, comparison table/figure in results/
+│                                       Python ports of SD-HMM (2026), VND-HMM (2024),
+│                                       Deep-Channel (2020), IDC (2025), Moffett (2022);
+│                                       provenance and deviations in BASELINES.md,
+│                                       comparison table/figure in results/
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation
@@ -87,7 +88,7 @@ Every notebook starts with a bootstrap cell that locates the repo root, so noteb
 3. **Cluster** with DBSCAN and DBSCAN+BGMM (`code/03_classical/`)
 4. **Learn** ion-channel count (CCNN) and point-wise state (LSTM) (`code/04_ml/`)
 5. **Novel track**: KI-HMM, one network that outputs the channel count, the per-state counts and the Markov rates, decodes with the rate table it predicts, and at inference uses its own learned likelihood to select the channel count and refine the rates (`code/04_ml/torch_models_v4.py`, `code/04_ml/infer_v5.py`, see [`docs/NOVELTY.md`](docs/NOVELTY.md))
-6. **Compare** against the closest published methods — SD-HMM, VND-HMM and Deep-Channel ported to Python and run on the frozen benchmark (`code/05_baselines/`, [`BASELINES.md`](code/05_baselines/BASELINES.md))
+6. **Compare** against the closest published methods — SD-HMM, VND-HMM, Deep-Channel, IDC and Moffett ported to Python and run on the frozen benchmark (`code/05_baselines/`, [`BASELINES.md`](code/05_baselines/BASELINES.md))
 
 ## Rights note
 

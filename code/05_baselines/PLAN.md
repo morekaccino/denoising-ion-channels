@@ -60,3 +60,25 @@ closest prior methods. Deliver paper-ready comparison tables and figures.
   Deep-Channel epochs (baselines still run on all traces).
 - Optimizer-sensitive EM local optima are a property of the baselines;
   documented rather than tuned away.
+
+## Round 2 (2026-09): three more papers
+
+Approved scope: IDC (Requadt et al. 2025), Moffett et al. 2022, Albertsen &
+Hansen 1994, same criteria as round 1. Python only (no R install); branch
+`baselines-round2` stacked on `baselines-vs-kihmm`.
+
+- [x] Branch + provenance pins (`BASELINES.md`)
+- [x] IDC pipeline port (`idc_port.py`): steps 2-3 exact, MUSCLE substituted
+      by a validated rank-based segmenter (no Python MUSCLE exists)
+- [x] IDC verification on the paper's noise scenarios (robustness ordering
+      reproduced: IDC beats VND under Cauchy, not under Gaussian)
+- [x] Moffett port (`moffett_port.py`) from their Zenodo Python code,
+      vectorized and verified bit-close against their node implementation
+- [x] Moffett on the 69 N=1 test traces (all noise levels)
+- [x] v5 per-trace reference (`v5_reference.py`) for identical subsets/per-N
+- [ ] Albertsen reconstruction (`albertsen_port.py`) - blocked on the full
+      text; PMC blocks scripted PDF downloads. User action: save
+      https://pmc.ncbi.nlm.nih.gov/articles/PMC1225503/pdf/biophysj00070-0031.pdf
+      locally and point the maintainer at it
+- [ ] Comparison tables/figure extended (`compare_baselines.py`)
+- [ ] Docs + report + stacked PR

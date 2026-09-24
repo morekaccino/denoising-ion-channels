@@ -125,3 +125,72 @@ for completeness.
 - Our side: `kihmm_v4_v5a.pt` through `code/04_ml/infer_v5.py` on the same
   traces (published numbers: N 0.951, open 0.853, MAE 0.183, state MAE 0.255,
   rate R2 [0.874, 0.682, 0.390, 0.213] at noise x1).
+
+## Round 2 (2026-09): IDC, Moffett, Albertsen
+
+Branch `baselines-round2` (stacked on `baselines-vs-kihmm`).
+
+### Repositories and provenance
+
+| Method | Paper | Source | License | Pin |
+|---|---|---|---|---|
+| IDC | Requadt, Fink, Kubica, Steinem, Munk & Li (2025), *IEEE Trans. NanoBiosci.* 24(3):305-317, arXiv:2403.13197 | `gitlab.gwdg.de/requadt/idc` | see repo | HEAD `61adeb2` (2025-01-07) |
+| Moffett | Moffett, Cui, Thomas, Hunt, McCarty, Westafer & Eckford (2022), *Biophys. Rep.* 2(6):100083 | Zenodo `10.5281/zenodo.7073043` (`andreweckford/PatchClampFactorGraphEM`, archive `9041fd1`) | other-open | as archived 2022-06-15 |
+| Albertsen | Albertsen & Hansen (1994), *Biophys. J.* 67(4):1393-1403 | no code; reconstruction from the paper | - | - |
+
+IDC's dependency MUSCLE (multiscale quantile segmentation,
+`github.com/liuzhi1993/muscle`, GPL-3) is R/C++ only; no Python build exists
+(also checked the author's `mqs` and GitHub search). Round 2 therefore ports
+IDC steps 2-3 exactly and substitutes step 1 (see below).
+
+### Porting decisions and deviations
+
+IDC (`idc_port.py`):
+
+1. **Idealisation (step 1) is substituted, documented.** MUSCLE is not
+   available for Python, so step 1 is a rank-based multiscale segmenter:
+   rank-transform the trace (bounded influence under heavy tails), recursively
+   split at the maximum rank-sum gain with a BIC-style stopping rule, take
+   segment medians, and merge adjacent segments whose medians are within
+   2.5 standard errors. Verified on the paper's own noise scenarios: the
+   robustness ordering of their Figures 3-5 is reproduced (mean parameter
+   error under Cauchy noise 0.160 for IDC vs 0.363 for VND-HMM; under
+   Gaussian noise state-of-the-art classical fitting wins, as in the paper).
+2. **Discretisation (step 2)** follows the reference: distinct conductance
+   groups are counted by comparing gaps with median standard errors, then the
+   equidistant-centre k-means objective of `constrained_k_means` is minimised
+   directly (their DP is replaced by Nelder-Mead on the same objective, with
+   the same number of clusters).
+3. **Minimum-distance fit (step 3)** is a line-by-line port of `LossRcpp`,
+   the empirical transition frequencies with the `n/(n-1)` correction, and
+   the box constraints; multi-start SLSQP replaces `constrOptim`. For even L
+   the estimator inherits the paper's identifiability ambiguity, visible as
+   bimodal parameter errors.
+4. **Level offsets are inherited, not a bug**: IDC assigns the open-count
+   index of each observed conductance level, so a trace that never visits all
+   channels closed is shifted downward and N is the number of observed levels
+   minus one. This is the paper's documented L underestimation, and it
+   dominates IDC's synthetic scores.
+
+Moffett (`moffett_port.py`):
+
+1. Their Zenodo code is Python (numpy/scipy); the port is a vectorized
+   reimplementation of the same factor-graph EM, preserving their message
+   normalisation, the pairwise-posterior M-step (`t=1..T-2`, row-normalised)
+   and their amplitude/noise equations.
+2. `--verify` checks the port against their node-based implementation on
+   random traces: final state path, transition matrix, amplitudes and noise
+   variance agree to 1e-8.
+3. Inputs: their state order and default CFTR rate table are identical to
+   this repository's. Initial amplitudes are the 10th/90th percentiles of the
+   trace and the initial noise variance is the trace variance (data-driven,
+   no ground truth); 10 EM iterations, their default.
+4. The method is single-channel, so it is evaluated on the 69 N=1 test traces
+   only, on the same traces as the v5 reference run.
+
+### Evaluation protocol (round 2)
+
+Same frozen `synth_v2` test set and metrics as round 1. The v5 side is
+recomputed per trace for all splits by `v5_reference.py` (the published
+presentation stage) so that subset comparisons (Moffett on N=1) and per-N
+tables use identical traces.
