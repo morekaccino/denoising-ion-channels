@@ -289,6 +289,46 @@ All 53 ABF recordings were run (10 s segments, one group per file).
   `code/02` noise-fitting route) or semi-supervised adaptation. Recorded as an
   open problem in `docs/STATUS.md`.
 
+## Head-to-head benchmark against prior methods (2026-09)
+
+To test the claim "better than previous methods" directly, the three closest
+published methods were reconstructed and run on the frozen `synth_v2` test set
+(384 traces, N=1–5, noise ×1/×2/×4). Provenance, licenses, commit hashes and
+every deviation are in `code/05_baselines/BASELINES.md`; the full table and
+figure are in `code/05_baselines/results/baseline_comparison.md`.
+
+| Method | What it is | Implementation |
+|---|---|---|
+| SD-HMM (Requadt & Li 2026) | Continuous-time sum-dependent chain on the open-channel count; BIC over L; Viterbi path | Python port of the R/Rcpp reference (GPL-3), verified by recovering the paper's `(3,4,4,3)` example and the positive/negative-cooperativity signs |
+| VND-HMM (Vanegas et al. 2024) | Discrete-time vector-norm-dependent chain; BIC over L; Viterbi path | Python port of the R/Rcpp reference (GPL-2), verified by recovering `(0.99,0.98,0.98,0.99)` |
+| Deep-Channel (Celik et al. 2020) | Pointwise CNN+LSTM idealizer (n=1 timestep, as in the paper and released code); N = max simultaneous openings | PyTorch reimplementation of the shipped Keras model, retrained on the `synth_v2` train split |
+
+Frozen test, noise ×1 (N accuracy / open accuracy / open MAE):
+
+| Method | N acc | Open acc | Open MAE |
+|---|---|---|---|
+| **KI-HMM v5a** | **0.951** | **0.853** | **0.183** |
+| SD-HMM | 0.401 | 0.640 | 0.498 |
+| VND-HMM | 0.417 | 0.637 | 0.503 |
+| Deep-Channel | 0.786 | 0.529 | 0.544 |
+
+At noise ×2 and ×4 the ranking is unchanged (v5a N 0.990/1.000, open
+0.755/0.508; baselines N 0.17–0.33, open 0.28–0.43). Per true N, the HMM
+baselines collapse at N≥4 (N=5 accuracy 0.00–0.01) because the extra current
+levels are not resolvable and BIC under-selects; Deep-Channel is competitive
+at N=1–2 on open count (0.885/0.656 against v5a's 0.991/0.964) but fails at
+N≥3 and its max-openings heuristic inflates N under noise. None of the three
+outputs per-state counts or kinetic rates; the capability matrix in
+`results/baseline_comparison.md` lists what each method supports.
+
+Two honesty notes for the paper: the two-state HMM baselines are structurally
+misspecified on 7-state CFTR data (their sum process is not Markov for the
+7-state chain), which is a limitation of the comparison as much as of the
+methods; and Deep-Channel is at the context-free pointwise accuracy ceiling on
+this data (nearest-level classification with known N reaches 0.74; a plain MLP
+0.56; Deep-Channel 0.53), so its score reflects the pointwise idealization
+task, not a weak training recipe (a 16-epoch schedule changes nothing).
+
 ## Limitations
 
 1. Rates are only partly identifiable from summed traces; report the
