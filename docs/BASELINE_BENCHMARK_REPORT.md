@@ -24,6 +24,128 @@ at 0.86–0.93). Round 2 adds IDC (Requadt et al. 2025) and the single-channel
 CFTR factor-graph EM (Moffett et al. 2022); the latter matches v5 on the N=1
 subset at the reference noise level and loses from x2 on (Section 12).
 
+## Verdict summary: v5a vs the five assessed prior methods
+
+This section states, method by method, whether KI-HMM v5a is better and on
+what evidence. The comparison is over the five methods actually assessed so
+far (three in round 1, two in round 2); Albertsen & Hansen 1994 is the one
+remaining planned baseline and is still blocked on the full text.
+
+### The six models at a glance
+
+| Model | Round | Input -> outputs | x1: N / open / MAE | Verdict |
+|---|---|---|---|---|
+| **KI-HMM v5a** (ours) | - | summed trace -> N, open count, a..g counts, rates | **0.951 / 0.853 / 0.183** | reference |
+| SD-HMM (2026) | 1 | summed trace -> N (BIC), open count (Viterbi) | 0.401 / 0.640 / 0.498 | **ours better everywhere** |
+| VND-HMM (2024) | 1 | summed trace -> N (BIC), open count (Viterbi), transition probs | 0.417 / 0.637 / 0.503 | **ours better everywhere** |
+| Deep-Channel (2020) | 1 | summed trace -> per-sample open count (0-5) | 0.786 / 0.529 / 0.544 | **ours better overall** (ties on N at N=1-2) |
+| IDC (2025) | 2 | summed trace -> level count, discretised open count | 0.320 / 0.442 / 0.869 | **ours better everywhere** |
+| Moffett (2022) | 2 | single-channel trace -> seven-state path, rates | N/A (single channel): open 0.987 / MAE 0.013 | **tie on its only valid subset at x1; ours better from x2 and in scope** |
+
+### 1. SD-HMM (Requadt & Li 2026) - ours better everywhere
+
+Continuous-time sum-dependent chain on the open-channel count, BIC model
+selection, Viterbi decoding; the closest published method by scope. Ported
+from the authors' R/C++ code and verified against the paper's own simulation
+scenarios (rate recovery, cooperativity signs, BIC, brute-force Viterbi).
+
+- x1: N 0.401 / open 0.640 / MAE 0.498; x2: 0.167 / 0.312 / 1.193; x4: 0.234 /
+  0.295 / 1.125 against v5a's 0.951 / 0.853 / 0.183, 0.987 / 0.753 / 0.320 and
+  1.000 / 0.508 / 0.618.
+- Per true N at x1: it is close to v5a only at N=2 (open 0.863 vs 0.964) and
+  collapses at N>=4 (N=5 channel-count accuracy 0/70).
+- Structural gaps: two-state channels (misspecified on 7-state CFTR), no
+  per-state counts, no usable rate table.
+
+### 2. VND-HMM (Vanegas et al. 2024) - ours better everywhere
+
+Discrete-time vector-norm-dependent chain; the predecessor of SD-HMM, ported
+from the authors' R/C++ code and verified against `(0.99, 0.98, 0.98, 0.99)`.
+Results are indistinguishable from SD-HMM (x1 N 0.417 / open 0.637 / MAE
+0.503), including the same N>=4 collapse and the documented L
+underestimation. Same structural gaps.
+
+### 3. Deep-Channel (Celik et al. 2020) - ours better overall, ties on one sub-metric
+
+Pointwise CNN+LSTM idealizer, retrained on the synth_v2 train split exactly as
+published (n=1 time step), architecture verified against the shipped Keras
+JSON.
+
+- x1: N 0.786 / open 0.529 / MAE 0.544; x2: 0.333 / 0.434 / 0.720; x4: 0.182 /
+  0.317 / 1.073 against v5a's numbers above.
+- It is the strongest neural baseline and ties v5a only on channel count at
+  N=1 and N=2 under low noise (both 1.000); its per-sample open count is far
+  behind everywhere (0.885 vs 0.991 at N=1, 0.203 vs 0.705 at N=5).
+- Its N estimate is the maximum predicted opening, which inflates under noise
+  (N accuracy 0.33 at x2, 0.18 at x4), and it outputs no states or rates.
+- It sits at the context-free pointwise accuracy ceiling on this data
+  (nearest-level with known N 0.74; plain MLP 0.56; Deep-Channel 0.53), so the
+  gap is a property of pointwise idealization, not of our training of it.
+
+### 4. IDC (Requadt et al. 2025) - ours better everywhere
+
+Idealisation, discretisation and VND minimum-distance cooperativity inference;
+steps 2-3 are exact ports of the authors' R code. Its Cauchy-noise robustness
+claim was reproduced in verification.
+
+- x1: N 0.320 / open 0.442 / MAE 0.869; x2: 0.164 / 0.325 / 1.183; x4: 0.003
+  / 0.213 / 1.529.
+- Its count scores inherit a limitation of the method itself: observed
+  conductance levels are labelled by index, so a trace that never visits all
+  channels closed is shifted downward and N is the number of observed levels
+  minus one. At N=1, where both levels are usually visited, it is competitive
+  on its own terms (N 0.739, open 0.758), still below v5a (1.000, 0.991).
+- Structural gaps: no per-state counts; its "rates" are VND transition
+  probabilities, not a 7-state kinetic table.
+
+### 5. Moffett et al. 2022 - tie where it applies, ours better beyond
+
+The single-channel CFTR factor-graph EM over the same 7-state model; their
+Zenodo Python code, vectorized and verified bit-close against their own
+implementation. Because it is single-channel, it was run on the 69 N=1 traces
+and compared against v5a on exactly those traces.
+
+| Metric (N=1 subset) | Split | v5a | Moffett |
+|---|---|---|---|
+| open accuracy | x1 | 0.9912 | 0.9874 |
+| open MAE | x1 | 0.0140 | **0.0126** |
+| open accuracy | x2 | **0.9511** | 0.8926 |
+| open accuracy | x4 | **0.8303** | 0.5203 |
+| per-sample 7-state accuracy | x1 / x2 / x4 | **0.939 / 0.929 / 0.903** | 0.698 / 0.600 / 0.491 |
+
+This is the one place where a prior method edges us on any number: Moffett's
+open-count MAE at x1 is 10% lower than v5a's (0.0126 vs 0.0140) while its
+accuracy is 0.4 points lower - a genuine tie on the easiest subset. From x2
+on, v5a wins by 6 to 31 points, its seven-state accuracy is 24 to 41 points
+higher at every noise level, and only v5a scales to N>1 and returns the
+channel count and kinetic rates. Moffett's per-trace EM also collapses at x4
+(fitted closed and open amplitudes coincide), where v5a still decodes N=1 at
+0.83 accuracy.
+
+### Where v5a is *not* ahead (stated explicitly for the paper)
+
+1. **Moffett at N=1, x1**: tied, with Moffett marginally better on MAE
+   (0.0126 vs 0.0140).
+2. **Deep-Channel at N=1-2, x1**: tied on channel-count accuracy (both 1.000);
+   Deep-Channel's N heuristic is accurate while the levels are clean.
+3. **Runtime/running cost**: v5a needs a trained network plus per-trace
+   evidence and rate refinement; Deep-Channel is a single forward pass and
+   Moffett runs per trace in seconds. v5a's cost is bounded and documented
+   but not the smallest.
+4. **Albertsen & Hansen 1994** has not been assessed yet, so no claim covers
+   the original summed-trace likelihood method.
+
+### Supported claim
+
+Across the five assessed methods, on the frozen synthetic benchmark with known
+labels, KI-HMM v5a has the best channel-count accuracy, the best per-sample
+open-count accuracy and the lowest open-count MAE at every noise level, and it
+is the only method that also returns seven-state occupancy counts and
+identifiable kinetic rates. The single-channel CFTR specialist ties it on the
+one subset that specialist supports at the reference noise level and falls
+behind from x2; the summed-trace and neural baselines are behind everywhere,
+and all of them stop working at N=4-5 while v5a does not.
+
 ## 1. Question and evaluation protocol
 
 The thesis claim is that KI-HMM v5 is better than the closest prior art at the
