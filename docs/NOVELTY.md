@@ -338,7 +338,9 @@ Moffett is single-channel, so it was run on the 69 N=1 traces: its open
 accuracy is 0.987/0.893/0.520 at noise x1/x2/x4 against v5's 0.991/0.951/0.830
 on the same traces, i.e. the specialist ties v5 at the reference noise level
 and degrades faster, while only v5 scales to N>1 and outputs N, seven-state
-occupancy and rates.
+occupancy and rates. A 10-point noise-factor sweep (1.0 to 4.0) with line
+charts for every full-test-set method is in the report (Section 13); v5a leads
+channel-count accuracy, open-count accuracy and open-count MAE at every level.
 
 ## Limitations
 

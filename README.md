@@ -49,7 +49,8 @@ The thesis investigates clustering techniques for analyzing multi-channel **CFTR
 │                                       Python ports of SD-HMM (2026), VND-HMM (2024),
 │                                       Deep-Channel (2020), IDC (2025), Moffett (2022);
 │                                       provenance and deviations in BASELINES.md,
-│                                       comparison table/figure in results/
+│                                       comparison table/figure in results/, 10-point
+│                                       noise-sweep line charts in figures/
 ├── scripts/
 │   └── verify_repo.py                  Repo health smoke test (no heavy deps)
 ├── docs/                               Documentation

@@ -496,11 +496,51 @@ environment (PMC serves it through a reCAPTCHA challenge), so the
 reconstruction is deferred until the PDF is available locally; the abstract
 and the standard direct-likelihood construction are already documented.
 
-## 13. Files and reproduction
+## 13. Noise-factor sweep (10 points)
+
+The supervisor asked for the comparison as curves. Every method was run at 10
+equally spaced noise factors from 1.0 to 4.0 on the frozen test traces. The
+points 1.0, 2.0 and 4.0 are the frozen x1/x2/x4 evaluations; the other seven
+levels are synthesized from the same traces with the generator's own noise
+formula (`X(s) = level + (X_s1 - level) * s`, with `level = 0.58*N + 0.82*open
+count`), checked against the stored x2/x4 arrays (max difference 9.5e-7). Every
+method therefore sees identical signals at every level. Moffett is excluded
+from these panels: it is single-channel, has no N output, and is reported in
+the tables of Section 12 instead.
+
+![noise sweep combined](../code/05_baselines/figures/noise_sweep_combined.png)
+
+Panels: channel-count accuracy (left), open-count accuracy (middle), open
+count MAE (right). One line per method; `noise_sweep.py` and
+`figures_noise_sweep.py` regenerate them.
+
+- v5a leads all three metrics at every noise level. At the reference level
+  (1.0) it reaches 0.951 / 0.853 / 0.183 against the best baseline
+  (Deep-Channel) at 0.786 / 0.529 / 0.544. At the top of the range (4.0) it
+  holds 1.000 / 0.508 / 0.618 while the baselines sit at 0.00-0.23 channel
+  count, 0.21-0.32 open accuracy and 1.07-1.53 MAE.
+- Channel-count accuracy for v5a improves with noise (0.951 to 1.000) because
+  the amplitude range grows with the number of channels; every other method
+  loses channel-count accuracy as noise increases.
+- Open-count accuracy declines smoothly for v5a from 0.853 to 0.508, at
+  roughly the rate at which the information in a single trace disappears;
+  the baselines are already behind at the reference level and flatten or
+  degrade from there.
+- Deep-Channel is the only baseline that stays below v5a without crossing or
+  flattening; the two-state HMMs (SD-HMM, VND-HMM) overlap each other and
+  collapse early; IDC drops to near zero channel-count accuracy beyond a
+  factor of 3.
+
+Compute for the full sweep: about 2 h for v5a, 3 h for SD-HMM, 2.5 h for
+VND-HMM, and under an hour together for IDC and Deep-Channel, all on the
+frozen 384-trace test set.
+
+## 14. Files and reproduction
 
 - Ports: `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`,
   `deepchannel_port.py`, `deepchannel_seq.py`, `idc_port.py`, `moffett_port.py`,
-  `v5_reference.py`, `compare_baselines.py`
+  `v5_reference.py`, `compare_baselines.py`, `noise_sweep.py`,
+  `figures_noise_sweep.py`
 - Provenance and deviations: `code/05_baselines/BASELINES.md`; plan and
   checkpoints: `code/05_baselines/PLAN.md`
 - Results: `code/05_baselines/results/baseline_comparison.{md,json}` plus the
@@ -521,4 +561,6 @@ python code/05_baselines/idc_port.py --split test_x1 --jobs 10
 python code/05_baselines/moffett_port.py --split test_x1 --jobs 10
 python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4  # per-trace v5 preds
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+python code/05_baselines/noise_sweep.py --method all --jobs 10   # ~9 h, 10 noise levels
+python code/05_baselines/figures_noise_sweep.py
 ```

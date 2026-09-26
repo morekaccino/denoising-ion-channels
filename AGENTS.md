@@ -68,6 +68,8 @@ python code/05_baselines/deepchannel_port.py --train --epochs 6 --batch 1024
 python code/05_baselines/deepchannel_port.py --eval
 python code/05_baselines/v5_reference.py --splits test_x1   # per-trace v5 preds for subset comparisons
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+python code/05_baselines/noise_sweep.py --method all --jobs 10   # 10-point noise sweep (~9 h)
+python code/05_baselines/figures_noise_sweep.py
 
 # Work with notebooks
 jupyter notebook

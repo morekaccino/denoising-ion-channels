@@ -27,15 +27,33 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SYNTH = ROOT / "data" / "derived" / "synth_v2"
 
 
-def load_traces(split: str) -> dict[str, np.ndarray]:
-    """Load a synth_v2 split; ``test_x2``-style names pick the noise scale."""
-    if "_x" in split:
-        base, scale = split.split("_x")[0], split.split("_x")[1]
+def load_traces(split: str, scale: float | None = None) -> dict[str, np.ndarray]:
+    """Load a synth_v2 split; ``test_x2``-style names pick the noise scale.
+
+    ``scale`` overrides the split suffix and synthesizes the trace at any noise
+    factor from the frozen x1 recording and the labels:
+
+        X(s) = level_sum + (X_s1 - level_sum) * s,
+        level_sum = 0.58 * N + 0.82 * open_count
+
+    which is exactly the generator's formula in ``benchmark.py`` /
+    ``benchmark_v2.py`` (per-channel closed level 0.58, open level 1.4). The
+    synthesis reproduces the stored x2/x4 arrays to float32 rounding.
+    """
+    if "_x" in split and scale is None:
+        base, suffix = split.split("_x")[0], split.split("_x")[1]
     else:
-        base, scale = split, "1"
+        base, suffix = split.split("_x")[0], None
     with np.load(SYNTH / f"{base}.npz") as data:
-        key = f"X_s{scale}"
-        X = data[key] if key in data.files else data["X"]
+        if scale is None:
+            key = f"X_s{suffix}" if suffix else "X_s1"
+            X = data[key] if key in data.files else data["X"]
+        else:
+            s = float(scale)
+            N = data["N"].astype(np.float64)
+            y = data["y"].astype(np.float64)
+            level = 0.58 * N[:, None] + 0.82 * y
+            X = (level + (data["X_s1"].astype(np.float64) - level) * s).astype(np.float32)
         return {
             "X": X.astype(np.float64),
             "y": data["y"].astype(np.int64),
