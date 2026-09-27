@@ -104,6 +104,8 @@ python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4   # ~2
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
 python code/05_baselines/noise_sweep.py --method all --jobs 10      # 10-point noise sweep, ~9 h
 python code/05_baselines/figures_noise_sweep.py                     # three line charts + combined panel
+python code/05_baselines/build_gauss_splits.py                      # Gaussian-noise training splits
+python code/05_baselines/assumption_controls.py --cell all --method all --jobs 10   # fairness 2x2
 ```
 
 ## Saved models

@@ -161,6 +161,8 @@ def main() -> None:
     parser.add_argument("--device", default="")
     parser.add_argument("--tag", default="v4a")
     parser.add_argument("--train-splits", default="train")
+    parser.add_argument("--val-split", default="val",
+                        help="validation split name (synth_v2 prefix)")
     parser.add_argument("--limit-groups", type=int, default=0)
     parser.add_argument("--init-emission", action="store_true",
                         help="warm-start the emission mixture from the GH fit")
@@ -180,7 +182,7 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
 
     train = load_concat(args.train_splits)
-    val = load("val")
+    val = load(args.val_split)
     n_groups = args.limit_groups or len(train["R"])
     rate_metric, basis, n_keep = fisher_basis(device)
     print(f"device={device} train={n_groups} groups x {train['K']} traces "

@@ -36,3 +36,9 @@ data/derived/presentation_v5.npz
 # (~25 min per split; compare_baselines.py falls back to the published metrics
 # when the cache is absent).
 code/05_baselines/results/v5_*_predictions.npz
+
+# Gaussian-noise versions of the training splits for the fairness control.
+# Rebuilt by   python code/05_baselines/build_gauss_splits.py
+data/derived/synth_v2/train_gauss.npz
+data/derived/synth_v2/train_extra_gauss.npz
+data/derived/synth_v2/val_gauss.npz

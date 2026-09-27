@@ -535,12 +535,152 @@ Compute for the full sweep: about 2 h for v5a, 3 h for SD-HMM, 2.5 h for
 VND-HMM, and under an hour together for IDC and Deep-Channel, all on the
 frozen 384-trace test set.
 
-## 14. Files and reproduction
+## 14. Fairness analysis: hidden assumptions and adaptability
+
+The supervisor's question: the ports were verified against the papers, but do
+the authors' own modelling assumptions make their methods work less well on
+CFTR, and if so how hard is it to adapt them? Verification only shows the code
+runs as specified; it does not show that the specification fits our data. This
+section answers that question with a controlled experiment and an
+adaptability assessment.
+
+### Design of the control
+
+A 2x2 experiment on the frozen test traces, holding everything except the two
+assumptions fixed (same N per trace, groups, rate tables, trace length,
+channel levels 0.58/1.4, and the same traces within each cell):
+
+|  | generalized-hyperbolic noise (frozen) | Gaussian noise |
+|---|---|---|
+| 7-state CFTR channels | frozen benchmark (primary) | emission test |
+| two-state channels | channel-structure test | native control |
+
+- Gaussian cells rebuild the signals with per-channel Gaussian noise of the
+  measured state-dependent standard deviation (closed 0.128, open 0.232),
+  keeping labels, groups and rates identical.
+- Two-state cells simulate each channel as a two-state chain whose transition
+  matrix is the projection of the group's CFTR rate table: effective
+  opening/closing rates equal the stationary probability flux across the
+  open/closed boundary, so the stationary open probability and boundary flux
+  match the CFTR chain. Channels are independent and identical, i.e. exactly
+  the null (independence) case of the pooled HMMs.
+- The released Moffett code's default time step (dt = 0.01 s) equals the
+  benchmark's sampling interval, so there is no time-base mismatch for it.
+- KI-HMM v5a is a 7-state model, so it is not run in the two-state cells. To
+  close the one asymmetry that favours us (our emissions are trained on the
+  benchmark's noise), we also retrained the identical v5a architecture and
+  recipe on Gaussian-noise versions of the training splits
+  (`build_gauss_splits.py`, same 1536 groups, `train_gauss` +
+  `train_extra_gauss`, validation `val_gauss`) and evaluated that model in the
+  Gaussian cells.
+
+### Results (N accuracy / open accuracy / open MAE)
+
+| Cell | v5a (GH-trained) | v5a (Gauss-trained) | SD-HMM | VND-HMM | IDC | Deep-Channel | Moffett (N=1) |
+|---|---|---|---|---|---|---|---|
+| CFTR + GH (frozen) | **0.951 / 0.853 / 0.183** | 0.745 / 0.682 / 0.351 | 0.401 / 0.640 / 0.498 | 0.417 / 0.637 / 0.503 | 0.320 / 0.442 / 0.869 | 0.786 / 0.529 / 0.544 | -- / 0.987 / 0.013 |
+| CFTR + Gaussian | 0.805 / 0.707 / 0.322 | **1.000 / 0.959 / 0.060** | 0.672 / 0.813 / 0.243 | 0.682 / 0.818 / 0.235 | 0.328 / 0.445 / 0.827 | 0.604 / 0.558 / 0.494 | -- / 0.997 / 0.003 |
+| two-state + GH | -- | -- | 0.448 / 0.655 / 0.454 | 0.411 / 0.642 / 0.464 | 0.281 / 0.425 / 0.949 | 0.789 / 0.531 / 0.538 | -- / 0.987 / 0.013 |
+| two-state + Gaussian | -- | -- | 0.688 / 0.802 / 0.234 | 0.661 / 0.802 / 0.236 | 0.284 / 0.429 / 0.874 | 0.578 / 0.561 / 0.488 | -- / 0.997 / 0.003 |
+
+Effect of each assumption (change from the frozen benchmark), in accuracy
+points:
+
+| Method | Gaussian noise instead of GH | two-state instead of 7-state |
+|---|---|---|
+| SD-HMM | +27.1 N, +17.3 open | +4.7 N, +1.5 open |
+| VND-HMM | +26.5 N, +18.2 open | -0.6 N, +0.5 open |
+| IDC | +0.8 N, +0.3 open | -3.9 N, -1.7 open |
+| Deep-Channel | -18.2 N, +2.9 open | +0.3 N, +0.2 open |
+| Moffett (N=1) | +0.9 open | -0.03 open |
+| v5a (GH-trained) | -14.6 N, -14.6 open | -- |
+
+### What this means
+
+1. The binding hidden assumption is the Gaussian emission model, not the
+   two-state channel model. On identical CFTR traces, giving the pooled HMMs
+   Gaussian noise raises their channel-count accuracy by about 27 points and
+   their open-count accuracy by 17-18 points, whereas making the channels
+   genuinely two-state changes them by at most about 5 points. The noise in the
+   frozen benchmark is heavy-tailed (per-channel open-state excess kurtosis
+   2.1), so a Gaussian likelihood effectively rejects the outliers and biases
+   both per-trace parameter estimates and model selection. The count dynamics,
+   by contrast, are captured well by an effective two-state chain, which is why
+   the structural mismatch costs little for counting (it may still matter for
+   the rates themselves).
+2. The pooled HMMs have an intrinsic ceiling as well. In their native cell
+   (two-state channels, Gaussian noise) they reach only N 0.66-0.69 and open
+   0.80, even though the data are generated exactly from their independence
+   case. Level selection by BIC and per-trace fitting remain the limiting
+   factors, not misspecification.
+3. Moffett's assumption cost is about 1 point at N=1 (Gaussian 0.997/0.003 vs
+   GH 0.987/0.013). Its model already matches the 7-state CFTR topology and its
+   default time step matches the benchmark; its limits are scope (single
+   channel) and estimating twelve rates and the amplitudes from one 10 s trace,
+   which collapses at x4 noise.
+4. Deep-Channel is insensitive to both controls; its ceiling is the pointwise
+   formulation in the released code (no temporal context; we retrained it on
+   our data) and the max-simultaneous-openings channel-count heuristic.
+5. IDC changes by less than a point under either control; its deficit is the
+   level-index count semantics (counts are indices of the observed levels, so a
+   trace that never visits all levels is shifted and N undercounts) plus the
+   two-state minimum-distance core.
+6. The noise family does not decide the ranking once the noise model is
+   matched. Under Gaussian noise, our noise-matched retrain reaches
+   N 1.000 / open 0.959 / MAE 0.060 on the same traces where the pooled HMMs
+   reach 0.66-0.68 / 0.81 / 0.24; under the realistic GH noise, the GH-trained
+   model leads all five baselines (Section 4). A model from either family
+   degrades when evaluated under the other family's noise (v5a: 0.853 -> 0.707
+   open; SD-HMM: 0.640 -> 0.813 when given Gaussian noise), so the primary
+   comparison is reported under the noise model fitted to the real recordings,
+   and the controls bound the effect of that choice.
+
+### Adaptability to CFTR
+
+| Assumption | Violated by our data? | Measured cost | Adaptation | Difficulty |
+|---|---|---|---|---|
+| Gaussian emissions (VND, SD-HMM, Moffett) | yes (GH heavy tails) | -17 to -27 points for the HMMs; about -1 for Moffett at N=1 | Student-t or GH emissions in the EM / message updates | moderate; not implemented here |
+| Two-state channels (VND, SD-HMM, IDC) | yes (5 closed + 2 open states) | at most about 5 N and 2 open points for counting | replace the two-state core with the exact 7-state count chain | hard / research-level |
+| Single channel (Moffett) | yes (summed traces) | not comparable beyond N=1 | count-state chain inference | hard |
+| Pointwise classifier, <=5 channels (Deep-Channel) | N<=5 satisfies the cap; no temporal model | open accuracy never above 0.56 across cells | sequence training, more classes; no kinetic model | moderate for a stronger idealiser; out of scope for states/rates |
+| Level-index counts (IDC) | yes (partial level visits) | N accuracy falls to 0.003 by x4 | none inside the method | intrinsic |
+| Per-trace rate estimation from one short trace (Moffett) | one N=1 trace per group, 10 s | amplitude/rate estimates collapse at x4 | longer recordings, stronger priors; group pooling is impossible for a single-channel method | data-side mitigation; moderate |
+
+The two-state to 7-state adaptation deserves the precise statement: SD-HMM's
+published extension to general finite state spaces covers channels with several
+*conductance levels* and requires an informativity condition (the summed level
+must identify the configuration of the channels). CFTR's five closed states are
+electrically silent, so the configuration is not identifiable from the sum by
+construction; the extension cannot represent them. Adapting the pooled family
+to CFTR therefore amounts to building the count-state chain over hidden
+microstates, which is the contribution of this work rather than an adaptation
+of the prior methods.
+
+### Verdict
+
+The protocol is fair: identical frozen traces and labels, published recipes,
+ports verified against the authors' own simulations, no test-set tuning, and
+the two places where a prior method beats ours are reported (Moffett's open MAE
+at N=1, x1; the pooled HMMs' open accuracy under Gaussian noise). The controls
+show that the assumptions responsible for most of the gap are the emission
+model (material, moderate to adapt, bounded here) and, at the ceiling, the
+per-trace level selection and model design (intrinsic). The two-state
+structural mismatch, which is the most obvious fairness objection, costs the
+baselines very little on the counting task and cannot be repaired within their
+published class. The one asymmetry that worked in our favour, training our
+emissions on the benchmark's noise, was closed by retraining under the
+baselines' Gaussian assumption; the ordering survives. In the paper we will
+state the comparison as a test of the published methods on a harder task than
+they were designed for, name each assumption, quantify its effect with these
+controls, and note that a heavy-tailed-emission adaptation of the baselines
+remains the main untested variant.
+
+## 15. Files and reproduction
 
 - Ports: `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`,
   `deepchannel_port.py`, `deepchannel_seq.py`, `idc_port.py`, `moffett_port.py`,
   `v5_reference.py`, `compare_baselines.py`, `noise_sweep.py`,
-  `figures_noise_sweep.py`
+  `figures_noise_sweep.py`, `assumption_controls.py`, `build_gauss_splits.py`
 - Provenance and deviations: `code/05_baselines/BASELINES.md`; plan and
   checkpoints: `code/05_baselines/PLAN.md`
 - Results: `code/05_baselines/results/baseline_comparison.{md,json}` plus the
@@ -563,4 +703,11 @@ python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4  # per
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
 python code/05_baselines/noise_sweep.py --method all --jobs 10   # ~9 h, 10 noise levels
 python code/05_baselines/figures_noise_sweep.py
+
+# fairness controls (2x2 structure x noise) + noise-matched v5 retrain
+python code/05_baselines/build_gauss_splits.py
+python code/04_ml/train_kihmm_v4.py --epochs 30 --batch-groups 16 --tag v5gauss \
+       --device cuda --rate-stats --n-head level --w-n 1.0 \
+       --train-splits train_gauss,train_extra_gauss --val-split val_gauss
+python code/05_baselines/assumption_controls.py --cell all --method all --jobs 10
 ```

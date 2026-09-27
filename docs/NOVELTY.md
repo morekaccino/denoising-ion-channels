@@ -341,6 +341,11 @@ and degrades faster, while only v5 scales to N>1 and outputs N, seven-state
 occupancy and rates. A 10-point noise-factor sweep (1.0 to 4.0) with line
 charts for every full-test-set method is in the report (Section 13); v5a leads
 channel-count accuracy, open-count accuracy and open-count MAE at every level.
+A 2x2 fairness control (Section 14) shows the prior methods' binding hidden
+assumption on our data is the Gaussian emission model, not the two-state
+channel structure: giving them Gaussian noise recovers 17-18 open points,
+making the channels two-state recovers at most about 5, and a noise-matched
+retrain of our model restores the lead (N 1.000 / open 0.959 on CFTR+Gaussian).
 
 ## Limitations
 

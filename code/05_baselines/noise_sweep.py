@@ -164,6 +164,10 @@ def v5_data(scale: float) -> dict:
 
 
 def run_v5(scale: float) -> dict:
+    return run_v5_data(v5_data(scale))
+
+
+def run_v5_data(data: dict, model_path: str | None = None) -> dict:
     sys.path.insert(0, str(ROOT / "code" / "04_ml"))
     import infer_v5 as I5
     import torch_models_v4 as V4
@@ -171,10 +175,9 @@ def run_v5(scale: float) -> dict:
     from train_kihmm_v2 import group_batches
     from train_kihmm_v4 import batch
 
-    model_path = ROOT / "code" / "04_ml" / "models" / "kihmm_v4_v5a.pt"
+    model_path = model_path or str(ROOT / "code" / "04_ml" / "models" / "kihmm_v4_v5a.pt")
     emission_dev, _ = I5.pick_devices("auto")
     model = load_model(str(model_path), "cpu")
-    data = v5_data(scale)
     n_groups = len(data["R"])
     n_head, rates_head, log_scale = [], [], []
     for gids in group_batches(n_groups, 8, np.random.default_rng(0), shuffle=False):
