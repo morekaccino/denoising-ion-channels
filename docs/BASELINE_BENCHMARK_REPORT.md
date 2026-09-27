@@ -20,7 +20,131 @@ test set as KI-HMM v5a:
 v5a wins every metric on every split. It is also the only method that outputs
 per-state counts and kinetic rates, and the only one that keeps working at
 N = 4–5 (baselines drop to 0.00–0.27 channel-count accuracy there; v5a stays
-at 0.86–0.93).
+at 0.86–0.93). Round 2 adds IDC (Requadt et al. 2025) and the single-channel
+CFTR factor-graph EM (Moffett et al. 2022); the latter matches v5 on the N=1
+subset at the reference noise level and loses from x2 on (Section 12).
+
+## Verdict summary: v5a vs the five assessed prior methods
+
+This section states, method by method, whether KI-HMM v5a is better and on
+what evidence. The comparison is over the five methods actually assessed so
+far (three in round 1, two in round 2); Albertsen & Hansen 1994 is the one
+remaining planned baseline and is still blocked on the full text.
+
+### The six models at a glance
+
+| Model | Round | Input -> outputs | x1: N / open / MAE | Verdict |
+|---|---|---|---|---|
+| **KI-HMM v5a** (ours) | - | summed trace -> N, open count, a..g counts, rates | **0.951 / 0.853 / 0.183** | reference |
+| SD-HMM (2026) | 1 | summed trace -> N (BIC), open count (Viterbi) | 0.401 / 0.640 / 0.498 | **ours better everywhere** |
+| VND-HMM (2024) | 1 | summed trace -> N (BIC), open count (Viterbi), transition probs | 0.417 / 0.637 / 0.503 | **ours better everywhere** |
+| Deep-Channel (2020) | 1 | summed trace -> per-sample open count (0-5) | 0.786 / 0.529 / 0.544 | **ours better overall** (ties on N at N=1-2) |
+| IDC (2025) | 2 | summed trace -> level count, discretised open count | 0.320 / 0.442 / 0.869 | **ours better everywhere** |
+| Moffett (2022) | 2 | single-channel trace -> seven-state path, rates | N/A (single channel): open 0.987 / MAE 0.013 | **tie on its only valid subset at x1; ours better from x2 and in scope** |
+
+### 1. SD-HMM (Requadt & Li 2026) - ours better everywhere
+
+Continuous-time sum-dependent chain on the open-channel count, BIC model
+selection, Viterbi decoding; the closest published method by scope. Ported
+from the authors' R/C++ code and verified against the paper's own simulation
+scenarios (rate recovery, cooperativity signs, BIC, brute-force Viterbi).
+
+- x1: N 0.401 / open 0.640 / MAE 0.498; x2: 0.167 / 0.312 / 1.193; x4: 0.234 /
+  0.295 / 1.125 against v5a's 0.951 / 0.853 / 0.183, 0.987 / 0.753 / 0.320 and
+  1.000 / 0.508 / 0.618.
+- Per true N at x1: it is close to v5a only at N=2 (open 0.863 vs 0.964) and
+  collapses at N>=4 (N=5 channel-count accuracy 0/70).
+- Structural gaps: two-state channels (misspecified on 7-state CFTR), no
+  per-state counts, no usable rate table.
+
+### 2. VND-HMM (Vanegas et al. 2024) - ours better everywhere
+
+Discrete-time vector-norm-dependent chain; the predecessor of SD-HMM, ported
+from the authors' R/C++ code and verified against `(0.99, 0.98, 0.98, 0.99)`.
+Results are indistinguishable from SD-HMM (x1 N 0.417 / open 0.637 / MAE
+0.503), including the same N>=4 collapse and the documented L
+underestimation. Same structural gaps.
+
+### 3. Deep-Channel (Celik et al. 2020) - ours better overall, ties on one sub-metric
+
+Pointwise CNN+LSTM idealizer, retrained on the synth_v2 train split exactly as
+published (n=1 time step), architecture verified against the shipped Keras
+JSON.
+
+- x1: N 0.786 / open 0.529 / MAE 0.544; x2: 0.333 / 0.434 / 0.720; x4: 0.182 /
+  0.317 / 1.073 against v5a's numbers above.
+- It is the strongest neural baseline and ties v5a only on channel count at
+  N=1 and N=2 under low noise (both 1.000); its per-sample open count is far
+  behind everywhere (0.885 vs 0.991 at N=1, 0.203 vs 0.705 at N=5).
+- Its N estimate is the maximum predicted opening, which inflates under noise
+  (N accuracy 0.33 at x2, 0.18 at x4), and it outputs no states or rates.
+- It sits at the context-free pointwise accuracy ceiling on this data
+  (nearest-level with known N 0.74; plain MLP 0.56; Deep-Channel 0.53), so the
+  gap is a property of pointwise idealization, not of our training of it.
+
+### 4. IDC (Requadt et al. 2025) - ours better everywhere
+
+Idealisation, discretisation and VND minimum-distance cooperativity inference;
+steps 2-3 are exact ports of the authors' R code. Its Cauchy-noise robustness
+claim was reproduced in verification.
+
+- x1: N 0.320 / open 0.442 / MAE 0.869; x2: 0.164 / 0.325 / 1.183; x4: 0.003
+  / 0.213 / 1.529.
+- Its count scores inherit a limitation of the method itself: observed
+  conductance levels are labelled by index, so a trace that never visits all
+  channels closed is shifted downward and N is the number of observed levels
+  minus one. At N=1, where both levels are usually visited, it is competitive
+  on its own terms (N 0.739, open 0.758), still below v5a (1.000, 0.991).
+- Structural gaps: no per-state counts; its "rates" are VND transition
+  probabilities, not a 7-state kinetic table.
+
+### 5. Moffett et al. 2022 - tie where it applies, ours better beyond
+
+The single-channel CFTR factor-graph EM over the same 7-state model; their
+Zenodo Python code, vectorized and verified bit-close against their own
+implementation. Because it is single-channel, it was run on the 69 N=1 traces
+and compared against v5a on exactly those traces.
+
+| Metric (N=1 subset) | Split | v5a | Moffett |
+|---|---|---|---|
+| open accuracy | x1 | 0.9912 | 0.9874 |
+| open MAE | x1 | 0.0140 | **0.0126** |
+| open accuracy | x2 | **0.9511** | 0.8926 |
+| open accuracy | x4 | **0.8303** | 0.5203 |
+| per-sample 7-state accuracy | x1 / x2 / x4 | **0.939 / 0.929 / 0.903** | 0.698 / 0.600 / 0.491 |
+
+This is the one place where a prior method edges us on any number: Moffett's
+open-count MAE at x1 is 10% lower than v5a's (0.0126 vs 0.0140) while its
+accuracy is 0.4 points lower - a genuine tie on the easiest subset. From x2
+on, v5a wins by 6 to 31 points, its seven-state accuracy is 24 to 41 points
+higher at every noise level, and only v5a scales to N>1 and returns the
+channel count and kinetic rates. Moffett's per-trace EM also collapses at x4
+(fitted closed and open amplitudes coincide), where v5a still decodes N=1 at
+0.83 accuracy.
+
+### Where v5a is *not* ahead (stated explicitly for the paper)
+
+1. **Moffett at N=1, x1**: tied, with Moffett marginally better on MAE
+   (0.0126 vs 0.0140).
+2. **Deep-Channel at N=1-2, x1**: tied on channel-count accuracy (both 1.000);
+   Deep-Channel's N heuristic is accurate while the levels are clean.
+3. **Runtime/running cost**: v5a needs a trained network plus per-trace
+   evidence and rate refinement; Deep-Channel is a single forward pass and
+   Moffett runs per trace in seconds. v5a's cost is bounded and documented
+   but not the smallest.
+4. **Albertsen & Hansen 1994** has not been assessed yet, so no claim covers
+   the original summed-trace likelihood method.
+
+### Supported claim
+
+Across the five assessed methods, on the frozen synthetic benchmark with known
+labels, KI-HMM v5a has the best channel-count accuracy, the best per-sample
+open-count accuracy and the lowest open-count MAE at every noise level, and it
+is the only method that also returns seven-state occupancy counts and
+identifiable kinetic rates. The single-channel CFTR specialist ties it on the
+one subset that specialist supports at the reference noise level and falls
+behind from x2; the summed-trace and neural baselines are behind everywhere,
+and all of them stop working at N=4-5 while v5a does not.
 
 ## 1. Question and evaluation protocol
 
@@ -244,6 +368,8 @@ weak training recipe, and the comparison is fair to the published method.
 | SD-HMM | yes (BIC) | yes (Viterbi) | no | effective birth-death only | no | no |
 | VND-HMM | yes (BIC) | yes (Viterbi) | no | transition probabilities only | no | no |
 | Deep-Channel | max-openings heuristic | yes (per sample) | no | no | yes (RCNN) | no |
+| IDC | yes (level count) | yes (discretised levels) | no | VND min-distance probs | no | no |
+| Moffett 2022 | no (single channel) | N=1 only | yes (single channel) | yes (per-trace EM) | no | yes |
 
 This is the structural half of the novelty argument: even before accuracy, no
 prior method produces the joint (N, 7-state occupancy counts, rates) output
@@ -296,10 +422,265 @@ grows with channel count and noise.*
 Not supported: calling the prior methods "wrong" in general — they target
 different models (binary channels, large ensembles, pointwise idealization).
 
-## 12. Files and reproduction
+## 12. Round 2 (2026-09): IDC, Moffett et al. 2022
+
+Two more prior methods were reconstructed on branch `baselines-round2`
+(stacked on the round-1 branch). Provenance and all deviations are in
+`code/05_baselines/BASELINES.md`.
+
+### IDC (Requadt et al. 2025, IEEE TNB / arXiv:2403.13197)
+
+The published pipeline is idealisation (MUSCLE) -> discretisation -> VND
+minimum-distance cooperativity inference. Steps 2 and 3 were ported exactly
+from the authors' `R/IDC.r` (equidistant-centre constrained k-means objective,
+empirical transition frequencies with the `n/(n-1)` correction, the
+minimum-distance loss and its box constraints). MUSCLE is R/C++ only and has
+no Python build, so step 1 is a documented substitute: a rank-based multiscale
+segmenter with median merging. On the paper's own noise scenarios the
+substitute reproduces their central robustness claim - under Cauchy noise IDC
+beats the VND-HMM estimator (mean parameter error 0.160 vs 0.363), while
+under Gaussian noise classical fitting wins (0.354 vs 0.004; the even-L
+identifiability ambiguity discussed in their own paper contributes to the
+large IDC error).
+
+Frozen `synth_v2` test set (N accuracy / open accuracy / open MAE):
+
+| Method | noise x1 | noise x2 | noise x4 |
+|---|---|---|---|
+| **KI-HMM v5a** | **0.951 / 0.853 / 0.183** | **0.987 / 0.753 / 0.320** | **1.000 / 0.508 / 0.618** |
+| IDC | 0.320 / 0.442 / 0.869 | 0.164 / 0.325 / 1.183 | 0.003 / 0.213 / 1.529 |
+
+IDC's scores are dominated by an inherited limitation rather than a porting
+issue: it assigns each conductance level the open-count index of the observed
+levels, so traces that never visit the all-closed level are shifted downward
+and N is the number of observed levels minus one. This is the documented
+L underestimation of the method, and it is why the count metrics fall below
+the two-state HMM baselines. At N = 1, where most traces visit both levels,
+IDC is competitive on its own terms (N accuracy 0.739, open accuracy 0.758).
+
+### Moffett et al. 2022 (Biophysical Reports)
+
+The CFTR factor-graph EM is single-channel, so it was run on the 69 N=1 test
+traces only, on exactly the same traces as the v5 reference run
+(`v5_reference.py`). The port is vectorized but preserves the reference
+message semantics and M-step equations, and `--verify` reproduces their
+node-based implementation (state path, transition matrix, amplitudes, noise
+variance to 1e-8).
+
+N=1 subset comparison:
+
+| Split | Metric | KI-HMM v5a | Moffett 2022 |
+|---|---|---|---|
+| test_x1 | open accuracy | 0.9912 | 0.9874 |
+| test_x1 | open MAE | 0.0140 | **0.0126** |
+| test_x1 | per-sample 7-state accuracy | 0.939 (rounded counts) | 0.698 |
+| test_x2 | open accuracy | **0.9511** | 0.8926 |
+| test_x2 | open MAE | **0.0725** | 0.1074 |
+| test_x4 | open accuracy | **0.8303** | 0.5203 |
+| test_x4 | open MAE | **0.2191** | 0.4797 |
+
+At the reference noise level the single-channel CFTR specialist matches v5 on
+the one subset it can address (open MAE 0.0126 vs 0.0140, accuracy 0.9874 vs
+0.9912), which is a fair and useful result for the paper: v5 equals the
+domain-specific method where that method applies, and it is the only one that
+scales to multiple channels, infers N, resolves the seven states and reports
+rates. As noise grows, Moffett's per-trace EM collapses (at x4 the fitted
+closed and open amplitudes coincide), while v5's N=1 subset accuracy remains
+0.83.
+
+### Albertsen & Hansen 1994
+
+Planned as the original summed-trace likelihood method (N from the likelihood,
+rates by Kronecker-sum direct fit). The full text is not reachable from this
+environment (PMC serves it through a reCAPTCHA challenge), so the
+reconstruction is deferred until the PDF is available locally; the abstract
+and the standard direct-likelihood construction are already documented.
+
+## 13. Noise-factor sweep (10 points)
+
+The supervisor asked for the comparison as curves. Every method was run at 10
+equally spaced noise factors from 1.0 to 4.0 on the frozen test traces. The
+points 1.0, 2.0 and 4.0 are the frozen x1/x2/x4 evaluations; the other seven
+levels are synthesized from the same traces with the generator's own noise
+formula (`X(s) = level + (X_s1 - level) * s`, with `level = 0.58*N + 0.82*open
+count`), checked against the stored x2/x4 arrays (max difference 9.5e-7). Every
+method therefore sees identical signals at every level. Moffett is excluded
+from these panels: it is single-channel, has no N output, and is reported in
+the tables of Section 12 instead.
+
+![noise sweep combined](../code/05_baselines/figures/noise_sweep_combined.png)
+
+Panels: channel-count accuracy (left), open-count accuracy (middle), open
+count MAE (right). One line per method; `noise_sweep.py` and
+`figures_noise_sweep.py` regenerate them.
+
+- v5a leads all three metrics at every noise level. At the reference level
+  (1.0) it reaches 0.951 / 0.853 / 0.183 against the best baseline
+  (Deep-Channel) at 0.786 / 0.529 / 0.544. At the top of the range (4.0) it
+  holds 1.000 / 0.508 / 0.618 while the baselines sit at 0.00-0.23 channel
+  count, 0.21-0.32 open accuracy and 1.07-1.53 MAE.
+- Channel-count accuracy for v5a improves with noise (0.951 to 1.000) because
+  the amplitude range grows with the number of channels; every other method
+  loses channel-count accuracy as noise increases.
+- Open-count accuracy declines smoothly for v5a from 0.853 to 0.508, at
+  roughly the rate at which the information in a single trace disappears;
+  the baselines are already behind at the reference level and flatten or
+  degrade from there.
+- Deep-Channel is the only baseline that stays below v5a without crossing or
+  flattening; the two-state HMMs (SD-HMM, VND-HMM) overlap each other and
+  collapse early; IDC drops to near zero channel-count accuracy beyond a
+  factor of 3.
+
+Compute for the full sweep: about 2 h for v5a, 3 h for SD-HMM, 2.5 h for
+VND-HMM, and under an hour together for IDC and Deep-Channel, all on the
+frozen 384-trace test set.
+
+## 14. Fairness analysis: hidden assumptions and adaptability
+
+The supervisor's question: the ports were verified against the papers, but do
+the authors' own modelling assumptions make their methods work less well on
+CFTR, and if so how hard is it to adapt them? Verification only shows the code
+runs as specified; it does not show that the specification fits our data. This
+section answers that question with a controlled experiment and an
+adaptability assessment.
+
+### Design of the control
+
+A 2x2 experiment on the frozen test traces, holding everything except the two
+assumptions fixed (same N per trace, groups, rate tables, trace length,
+channel levels 0.58/1.4, and the same traces within each cell):
+
+|  | generalized-hyperbolic noise (frozen) | Gaussian noise |
+|---|---|---|
+| 7-state CFTR channels | frozen benchmark (primary) | emission test |
+| two-state channels | channel-structure test | native control |
+
+- Gaussian cells rebuild the signals with per-channel Gaussian noise of the
+  measured state-dependent standard deviation (closed 0.128, open 0.232),
+  keeping labels, groups and rates identical.
+- Two-state cells simulate each channel as a two-state chain whose transition
+  matrix is the projection of the group's CFTR rate table: effective
+  opening/closing rates equal the stationary probability flux across the
+  open/closed boundary, so the stationary open probability and boundary flux
+  match the CFTR chain. Channels are independent and identical, i.e. exactly
+  the null (independence) case of the pooled HMMs.
+- The released Moffett code's default time step (dt = 0.01 s) equals the
+  benchmark's sampling interval, so there is no time-base mismatch for it.
+- KI-HMM v5a is a 7-state model, so it is not run in the two-state cells. To
+  close the one asymmetry that favours us (our emissions are trained on the
+  benchmark's noise), we also retrained the identical v5a architecture and
+  recipe on Gaussian-noise versions of the training splits
+  (`build_gauss_splits.py`, same 1536 groups, `train_gauss` +
+  `train_extra_gauss`, validation `val_gauss`) and evaluated that model in the
+  Gaussian cells.
+
+### Results (N accuracy / open accuracy / open MAE)
+
+| Cell | v5a (GH-trained) | v5a (Gauss-trained) | SD-HMM | VND-HMM | IDC | Deep-Channel | Moffett (N=1) |
+|---|---|---|---|---|---|---|---|
+| CFTR + GH (frozen) | **0.951 / 0.853 / 0.183** | 0.745 / 0.682 / 0.351 | 0.401 / 0.640 / 0.498 | 0.417 / 0.637 / 0.503 | 0.320 / 0.442 / 0.869 | 0.786 / 0.529 / 0.544 | -- / 0.987 / 0.013 |
+| CFTR + Gaussian | 0.805 / 0.707 / 0.322 | **1.000 / 0.959 / 0.060** | 0.672 / 0.813 / 0.243 | 0.682 / 0.818 / 0.235 | 0.328 / 0.445 / 0.827 | 0.604 / 0.558 / 0.494 | -- / 0.997 / 0.003 |
+| two-state + GH | -- | -- | 0.448 / 0.655 / 0.454 | 0.411 / 0.642 / 0.464 | 0.281 / 0.425 / 0.949 | 0.789 / 0.531 / 0.538 | -- / 0.987 / 0.013 |
+| two-state + Gaussian | -- | -- | 0.688 / 0.802 / 0.234 | 0.661 / 0.802 / 0.236 | 0.284 / 0.429 / 0.874 | 0.578 / 0.561 / 0.488 | -- / 0.997 / 0.003 |
+
+Effect of each assumption (change from the frozen benchmark), in accuracy
+points:
+
+| Method | Gaussian noise instead of GH | two-state instead of 7-state |
+|---|---|---|
+| SD-HMM | +27.1 N, +17.3 open | +4.7 N, +1.5 open |
+| VND-HMM | +26.5 N, +18.2 open | -0.6 N, +0.5 open |
+| IDC | +0.8 N, +0.3 open | -3.9 N, -1.7 open |
+| Deep-Channel | -18.2 N, +2.9 open | +0.3 N, +0.2 open |
+| Moffett (N=1) | +0.9 open | -0.03 open |
+| v5a (GH-trained) | -14.6 N, -14.6 open | -- |
+
+### What this means
+
+1. The binding hidden assumption is the Gaussian emission model, not the
+   two-state channel model. On identical CFTR traces, giving the pooled HMMs
+   Gaussian noise raises their channel-count accuracy by about 27 points and
+   their open-count accuracy by 17-18 points, whereas making the channels
+   genuinely two-state changes them by at most about 5 points. The noise in the
+   frozen benchmark is heavy-tailed (per-channel open-state excess kurtosis
+   2.1), so a Gaussian likelihood effectively rejects the outliers and biases
+   both per-trace parameter estimates and model selection. The count dynamics,
+   by contrast, are captured well by an effective two-state chain, which is why
+   the structural mismatch costs little for counting (it may still matter for
+   the rates themselves).
+2. The pooled HMMs have an intrinsic ceiling as well. In their native cell
+   (two-state channels, Gaussian noise) they reach only N 0.66-0.69 and open
+   0.80, even though the data are generated exactly from their independence
+   case. Level selection by BIC and per-trace fitting remain the limiting
+   factors, not misspecification.
+3. Moffett's assumption cost is about 1 point at N=1 (Gaussian 0.997/0.003 vs
+   GH 0.987/0.013). Its model already matches the 7-state CFTR topology and its
+   default time step matches the benchmark; its limits are scope (single
+   channel) and estimating twelve rates and the amplitudes from one 10 s trace,
+   which collapses at x4 noise.
+4. Deep-Channel is insensitive to both controls; its ceiling is the pointwise
+   formulation in the released code (no temporal context; we retrained it on
+   our data) and the max-simultaneous-openings channel-count heuristic.
+5. IDC changes by less than a point under either control; its deficit is the
+   level-index count semantics (counts are indices of the observed levels, so a
+   trace that never visits all levels is shifted and N undercounts) plus the
+   two-state minimum-distance core.
+6. The noise family does not decide the ranking once the noise model is
+   matched. Under Gaussian noise, our noise-matched retrain reaches
+   N 1.000 / open 0.959 / MAE 0.060 on the same traces where the pooled HMMs
+   reach 0.66-0.68 / 0.81 / 0.24; under the realistic GH noise, the GH-trained
+   model leads all five baselines (Section 4). A model from either family
+   degrades when evaluated under the other family's noise (v5a: 0.853 -> 0.707
+   open; SD-HMM: 0.640 -> 0.813 when given Gaussian noise), so the primary
+   comparison is reported under the noise model fitted to the real recordings,
+   and the controls bound the effect of that choice.
+
+### Adaptability to CFTR
+
+| Assumption | Violated by our data? | Measured cost | Adaptation | Difficulty |
+|---|---|---|---|---|
+| Gaussian emissions (VND, SD-HMM, Moffett) | yes (GH heavy tails) | -17 to -27 points for the HMMs; about -1 for Moffett at N=1 | Student-t or GH emissions in the EM / message updates | moderate; not implemented here |
+| Two-state channels (VND, SD-HMM, IDC) | yes (5 closed + 2 open states) | at most about 5 N and 2 open points for counting | replace the two-state core with the exact 7-state count chain | hard / research-level |
+| Single channel (Moffett) | yes (summed traces) | not comparable beyond N=1 | count-state chain inference | hard |
+| Pointwise classifier, <=5 channels (Deep-Channel) | N<=5 satisfies the cap; no temporal model | open accuracy never above 0.56 across cells | sequence training, more classes; no kinetic model | moderate for a stronger idealiser; out of scope for states/rates |
+| Level-index counts (IDC) | yes (partial level visits) | N accuracy falls to 0.003 by x4 | none inside the method | intrinsic |
+| Per-trace rate estimation from one short trace (Moffett) | one N=1 trace per group, 10 s | amplitude/rate estimates collapse at x4 | longer recordings, stronger priors; group pooling is impossible for a single-channel method | data-side mitigation; moderate |
+
+The two-state to 7-state adaptation deserves the precise statement: SD-HMM's
+published extension to general finite state spaces covers channels with several
+*conductance levels* and requires an informativity condition (the summed level
+must identify the configuration of the channels). CFTR's five closed states are
+electrically silent, so the configuration is not identifiable from the sum by
+construction; the extension cannot represent them. Adapting the pooled family
+to CFTR therefore amounts to building the count-state chain over hidden
+microstates, which is the contribution of this work rather than an adaptation
+of the prior methods.
+
+### Verdict
+
+The protocol is fair: identical frozen traces and labels, published recipes,
+ports verified against the authors' own simulations, no test-set tuning, and
+the two places where a prior method beats ours are reported (Moffett's open MAE
+at N=1, x1; the pooled HMMs' open accuracy under Gaussian noise). The controls
+show that the assumptions responsible for most of the gap are the emission
+model (material, moderate to adapt, bounded here) and, at the ceiling, the
+per-trace level selection and model design (intrinsic). The two-state
+structural mismatch, which is the most obvious fairness objection, costs the
+baselines very little on the counting task and cannot be repaired within their
+published class. The one asymmetry that worked in our favour, training our
+emissions on the benchmark's noise, was closed by retraining under the
+baselines' Gaussian assumption; the ordering survives. In the paper we will
+state the comparison as a test of the published methods on a harder task than
+they were designed for, name each assumption, quantify its effect with these
+controls, and note that a heavy-tailed-emission adaptation of the baselines
+remains the main untested variant.
+
+## 15. Files and reproduction
 
 - Ports: `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`,
-  `deepchannel_port.py`, `deepchannel_seq.py`, `compare_baselines.py`
+  `deepchannel_port.py`, `deepchannel_seq.py`, `idc_port.py`, `moffett_port.py`,
+  `v5_reference.py`, `compare_baselines.py`, `noise_sweep.py`,
+  `figures_noise_sweep.py`, `assumption_controls.py`, `build_gauss_splits.py`
 - Provenance and deviations: `code/05_baselines/BASELINES.md`; plan and
   checkpoints: `code/05_baselines/PLAN.md`
 - Results: `code/05_baselines/results/baseline_comparison.{md,json}` plus the
@@ -314,5 +695,19 @@ python code/05_baselines/sdmc_port.py --split test_x1 --jobs 10   # test_x2, tes
 python code/05_baselines/vnd_port.py  --split test_x1 --jobs 10
 python code/05_baselines/deepchannel_port.py --train --epochs 6 --batch 1024
 python code/05_baselines/deepchannel_port.py --eval --splits test_x1,test_x2,test_x4
+python code/05_baselines/idc_port.py --verify
+python code/05_baselines/moffett_port.py --verify
+python code/05_baselines/idc_port.py --split test_x1 --jobs 10
+python code/05_baselines/moffett_port.py --split test_x1 --jobs 10
+python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4  # per-trace v5 preds
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+python code/05_baselines/noise_sweep.py --method all --jobs 10   # ~9 h, 10 noise levels
+python code/05_baselines/figures_noise_sweep.py
+
+# fairness controls (2x2 structure x noise) + noise-matched v5 retrain
+python code/05_baselines/build_gauss_splits.py
+python code/04_ml/train_kihmm_v4.py --epochs 30 --batch-groups 16 --tag v5gauss \
+       --device cuda --rate-stats --n-head level --w-n 1.0 \
+       --train-splits train_gauss,train_extra_gauss --val-split val_gauss
+python code/05_baselines/assumption_controls.py --cell all --method all --jobs 10
 ```

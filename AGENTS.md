@@ -55,14 +55,23 @@ pip install -r requirements-ml.txt
 # Novel-method track (KI-HMM v2/v3/v4) needs torch:
 uv venv --python 3.13 .venv && uv pip install -r requirements-ml-torch.txt
 
-# Prior-method benchmark (SD-HMM, VND-HMM, Deep-Channel) on frozen synth_v2:
+# Prior-method benchmark (SD-HMM, VND-HMM, Deep-Channel, IDC, Moffett) on frozen synth_v2:
 python code/05_baselines/sdmc_port.py --verify
 python code/05_baselines/vnd_port.py --verify
+python code/05_baselines/idc_port.py --verify
+python code/05_baselines/moffett_port.py --verify
 python code/05_baselines/sdmc_port.py --split test_x1 --jobs 10
 python code/05_baselines/vnd_port.py --split test_x1 --jobs 10
+python code/05_baselines/idc_port.py --split test_x1 --jobs 10
+python code/05_baselines/moffett_port.py --split test_x1 --jobs 10
 python code/05_baselines/deepchannel_port.py --train --epochs 6 --batch 1024
 python code/05_baselines/deepchannel_port.py --eval
+python code/05_baselines/v5_reference.py --splits test_x1   # per-trace v5 preds for subset comparisons
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+python code/05_baselines/noise_sweep.py --method all --jobs 10   # 10-point noise sweep (~9 h)
+python code/05_baselines/figures_noise_sweep.py
+python code/05_baselines/build_gauss_splits.py                   # Gaussian-noise training splits
+python code/05_baselines/assumption_controls.py --cell all --method all --jobs 10   # fairness 2x2
 
 # Work with notebooks
 jupyter notebook
@@ -77,7 +86,7 @@ python scripts/verify_repo.py
 - The thesis's winning pipeline is the combined CCNN + LSTM (`code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`).
 - The best model on the novel-method track is **KI-HMM v5a** (`code/04_ml/torch_models_v4.py`, `models/kihmm_v4_v5a.pt`) run through `code/04_ml/infer_v5.py`: one network for N, the per-state counts a..g and the 12 Markov rates, which rebuilds the kinetic chain from its own predicted rates inside the forward pass. At inference the same learned likelihood picks N by model evidence and refines the rates by gradient ascent. Trains in ~55 min on an Apple M4 Pro CPU. Each layer has a `--verify` mode that checks it against the numpy reference in `kinetics.py`.
 - Before proposing a new architecture, read the bake-off results (`results/bakeoff_count.json`, `results/bakeoff_rates.json`). 23 head and backbone designs were compared and the conclusion was that architecture barely matters here; training data volume and optimiser coupling do.
-- Prior-method benchmarks live in `code/05_baselines/` (Python ports of SD-HMM 2026, VND-HMM 2024 and Deep-Channel 2020; R/TF reference code pinned under `.external/`, never vendored). Provenance, licenses and every porting deviation are in `code/05_baselines/BASELINES.md`; the head-to-head table against v5a is `code/05_baselines/results/baseline_comparison.md`; the full paper-ready write-up (protocol, verification, per-N results, fairness analysis, threats to validity) is `docs/BASELINE_BENCHMARK_REPORT.md`. Re-run both ports' `--verify` after touching `hmm_core.py`.
+- Prior-method benchmarks live in `code/05_baselines/` (Python ports of SD-HMM 2026, VND-HMM 2024, Deep-Channel 2020, IDC 2025 and Moffett 2022; R/TF/Zenodo reference code pinned under `.external/`, never vendored). Provenance, licenses and every porting deviation are in `code/05_baselines/BASELINES.md`; the head-to-head table against v5a is `code/05_baselines/results/baseline_comparison.md`; the full paper-ready write-up (protocol, verification, per-N results, fairness analysis, threats to validity) is `docs/BASELINE_BENCHMARK_REPORT.md`. Re-run the ports' `--verify` after touching `hmm_core.py` (IDC/Moffett have their own verify).
 - `tensorflow` is required only for `code/04_ml/` (via `requirements-ml.txt`); classical notebooks need only the core requirements.
 - The combined model is a subclassed `CustomModel`; to load it, the class must be defined/registered first (run its definition cell in `code/04_ml/state_estimator_and_LSTM_normalized_50_50_artificial_data.ipynb`, or define the same class in your script).
 - Some thesis hyperparameters (ML sweeps, GH noise parameters, DBSCAN epsilon heuristics) do not match the committed notebooks — see `docs/STATUS.md` before claiming full reproducibility.

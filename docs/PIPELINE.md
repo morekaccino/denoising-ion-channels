@@ -43,7 +43,7 @@ v4 (stages 2e–2g) closes the loop that v2 and v3 left open: both predicted a r
 | — v5 presentation | Cache the best-stage per-trace predictions; calculate total, per-N, per-state, transition, dwell, noise and rate metrics; render direct predicted-vs-true figures; apply v5a to real ABFs for unlabeled display only; present the full method and literature review as one GitHub-readable report | `docs/KI_HMM_V5_PRESENTATION.md`, `code/04_ml/presentation_results.py`, `figures_presentation_v5.py`, `presentation_real_v5.py`, metrics in `code/04_ml/results/presentation_v5_metrics.json` |
 | 3 — Trans-dimensional variants | Slot-attention / count-head comparisons from speech separation and NILM | (planned) |
 | — Baselines | Re-train the three thesis Keras models on frozen splits for a fair comparison | `code/04_ml/train_baselines.py` (done), results `code/04_ml/results/baselines_synth_v1.json` |
-| 6 — Prior-method benchmark | Python ports of the three closest published methods (SD-HMM, VND-HMM, Deep-Channel), each verified against its own paper's simulations, run head-to-head with v5a on the frozen `synth_v2` test set; provenance, licenses and deviations in `BASELINES.md`; full report in `docs/BASELINE_BENCHMARK_REPORT.md` | `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`, `deepchannel_port.py`, `compare_baselines.py`; results `code/05_baselines/results/baseline_comparison.{md,json}`, figure `code/05_baselines/figures/baseline_comparison.png` |
+| 6 — Prior-method benchmark | Python ports of the closest published methods — SD-HMM, VND-HMM, Deep-Channel (round 1) and IDC, Moffett (round 2), each verified against its own paper's simulations, run head-to-head with v5a on the frozen `synth_v2` test set, plus a 10-point noise-factor sweep with line charts; provenance, licenses and deviations in `BASELINES.md`; full report in `docs/BASELINE_BENCHMARK_REPORT.md` | `code/05_baselines/hmm_core.py`, `vnd_port.py`, `sdmc_port.py`, `deepchannel_port.py`, `idc_port.py`, `moffett_port.py`, `v5_reference.py`, `compare_baselines.py`, `noise_sweep.py`, `figures_noise_sweep.py`; results `code/05_baselines/results/baseline_comparison.{md,json}` and `noise_sweep_*.json`, figures `code/05_baselines/figures/` |
 | 4 — Amortized Bayesian | Neural posterior/evidence estimation, calibrated uncertainty | (planned) |
 | 5 — Real data (v2) | Frozen v2 applied to all 53 ABFs (N and effective rates per file). N transfers (≈1 everywhere); rates are out-of-distribution and need domain-randomized retraining | `code/04_ml/apply_kihmm_v2_real.py`, results `code/04_ml/results/kihmm_v2_real.json` |
 
@@ -94,6 +94,18 @@ python code/05_baselines/vnd_port.py  --split test_x1 --jobs 10
 python code/05_baselines/deepchannel_port.py --train --epochs 6 --batch 1024
 python code/05_baselines/deepchannel_port.py --eval --splits test_x1,test_x2,test_x4
 python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+
+# round 2 (branch baselines-round2): IDC, Moffett, Albertsen
+python code/05_baselines/idc_port.py --verify
+python code/05_baselines/moffett_port.py --verify
+python code/05_baselines/idc_port.py --split test_x1 --jobs 10       # ~2 min per split
+python code/05_baselines/moffett_port.py --split test_x1 --jobs 10   # N=1 subset, seconds
+python code/05_baselines/v5_reference.py --splits test_x1,test_x2,test_x4   # ~25 min per split
+python code/05_baselines/compare_baselines.py --dc-tag deepchannel
+python code/05_baselines/noise_sweep.py --method all --jobs 10      # 10-point noise sweep, ~9 h
+python code/05_baselines/figures_noise_sweep.py                     # three line charts + combined panel
+python code/05_baselines/build_gauss_splits.py                      # Gaussian-noise training splits
+python code/05_baselines/assumption_controls.py --cell all --method all --jobs 10   # fairness 2x2
 ```
 
 ## Saved models

@@ -1,0 +1,26 @@
+{
+  "method": "moffett_port",
+  "split": "test_x4",
+  "subset": "N=1 traces only (single-channel method)",
+  "traces": 69,
+  "runtime_s": 5.1,
+  "metrics": {
+    "state_acc": 0.4906521739130435,
+    "open_acc": 0.5203478260869565,
+    "open_mae": 0.4796521739130435,
+    "per_state_acc": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.9994090183795284,
+      "5": 0.002273040363686458,
+      "6": 0.0
+    },
+    "amplitude_mean": [
+      0.9411342272911385,
+      0.9411362463824389
+    ],
+    "sigma2_mean": 0.5663477780653007
+  }
+}
